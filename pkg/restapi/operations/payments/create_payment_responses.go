@@ -16,7 +16,7 @@ import (
 // CreatePaymentCreatedCode is the HTTP code returned for type CreatePaymentCreated
 const CreatePaymentCreatedCode int = 201
 
-/*CreatePaymentCreated Payment creation response
+/*CreatePaymentCreated Payment created successfully
 
 swagger:response createPaymentCreated
 */

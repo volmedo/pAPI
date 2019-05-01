@@ -48,13 +48,13 @@ func init() {
             "name": "Payment creation request",
             "in": "body",
             "schema": {
-              "$ref": "#/definitions/PaymentCreation"
+              "$ref": "#/definitions/PaymentCreationRequest"
             }
           }
         ],
         "responses": {
           "201": {
-            "description": "Payment creation response",
+            "description": "Payment created successfully",
             "schema": {
               "$ref": "#/definitions/PaymentCreationResponse"
             }
@@ -333,8 +333,11 @@ func init() {
         }
       }
     },
-    "PaymentCreation": {
+    "PaymentCreationRequest": {
       "type": "object",
+      "required": [
+        "data"
+      ],
       "properties": {
         "data": {
           "$ref": "#/definitions/Payment"
@@ -343,6 +346,9 @@ func init() {
     },
     "PaymentCreationResponse": {
       "type": "object",
+      "required": [
+        "data"
+      ],
       "properties": {
         "data": {
           "$ref": "#/definitions/Payment"
@@ -428,13 +434,13 @@ func init() {
             "name": "Payment creation request",
             "in": "body",
             "schema": {
-              "$ref": "#/definitions/PaymentCreation"
+              "$ref": "#/definitions/PaymentCreationRequest"
             }
           }
         ],
         "responses": {
           "201": {
-            "description": "Payment creation response",
+            "description": "Payment created successfully",
             "schema": {
               "$ref": "#/definitions/PaymentCreationResponse"
             }
@@ -714,8 +720,11 @@ func init() {
         }
       }
     },
-    "PaymentCreation": {
+    "PaymentCreationRequest": {
       "type": "object",
+      "required": [
+        "data"
+      ],
       "properties": {
         "data": {
           "$ref": "#/definitions/Payment"
@@ -724,6 +733,9 @@ func init() {
     },
     "PaymentCreationResponse": {
       "type": "object",
+      "required": [
+        "data"
+      ],
       "properties": {
         "data": {
           "$ref": "#/definitions/Payment"

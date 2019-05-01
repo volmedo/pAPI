@@ -213,10 +213,12 @@ definitions:
         type: integer
     required: [id, organisation_id, attributes]
     type: object
-  PaymentCreation:
+  PaymentCreationRequest:
     properties:
       data:
         $ref: "#/definitions/Payment"
+    required:
+      - data
     type: object
   PaymentCreationResponse:
     properties:
@@ -224,6 +226,8 @@ definitions:
         $ref: "#/definitions/Payment"
       links:
         $ref: "#/definitions/Links"
+    required:
+      - data
     type: object
   PaymentParty:
     properties:
@@ -271,10 +275,10 @@ paths:
         - in: body
           name: Payment creation request
           schema:
-            $ref: "#/definitions/PaymentCreation"
+            $ref: "#/definitions/PaymentCreationRequest"
       responses:
         201:
-          description: Payment creation response
+          description: Payment created successfully
           schema:
             $ref: "#/definitions/PaymentCreationResponse"
       summary: Create payment

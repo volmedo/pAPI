@@ -92,7 +92,7 @@ func TestCreatePayment(t *testing.T) {
 	ctx := context.Background()
 	params := payments.CreatePaymentParams{
 		HTTPRequest:            nil,
-		PaymentCreationRequest: &models.PaymentCreation{Data: &testPayment},
+		PaymentCreationRequest: &models.PaymentCreationRequest{Data: &testPayment},
 	}
 
 	responder := api.CreatePayment(ctx, params)

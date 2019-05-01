@@ -10,18 +10,20 @@ import (
 
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/swag"
+	"github.com/go-openapi/validate"
 )
 
-// PaymentCreation payment creation
-// swagger:model PaymentCreation
-type PaymentCreation struct {
+// PaymentCreationRequest payment creation request
+// swagger:model PaymentCreationRequest
+type PaymentCreationRequest struct {
 
 	// data
-	Data *Payment `json:"data,omitempty"`
+	// Required: true
+	Data *Payment `json:"data"`
 }
 
-// Validate validates this payment creation
-func (m *PaymentCreation) Validate(formats strfmt.Registry) error {
+// Validate validates this payment creation request
+func (m *PaymentCreationRequest) Validate(formats strfmt.Registry) error {
 	var res []error
 
 	if err := m.validateData(formats); err != nil {
@@ -34,10 +36,10 @@ func (m *PaymentCreation) Validate(formats strfmt.Registry) error {
 	return nil
 }
 
-func (m *PaymentCreation) validateData(formats strfmt.Registry) error {
+func (m *PaymentCreationRequest) validateData(formats strfmt.Registry) error {
 
-	if swag.IsZero(m.Data) { // not required
-		return nil
+	if err := validate.Required("data", "body", m.Data); err != nil {
+		return err
 	}
 
 	if m.Data != nil {
@@ -53,7 +55,7 @@ func (m *PaymentCreation) validateData(formats strfmt.Registry) error {
 }
 
 // MarshalBinary interface implementation
-func (m *PaymentCreation) MarshalBinary() ([]byte, error) {
+func (m *PaymentCreationRequest) MarshalBinary() ([]byte, error) {
 	if m == nil {
 		return nil, nil
 	}
@@ -61,8 +63,8 @@ func (m *PaymentCreation) MarshalBinary() ([]byte, error) {
 }
 
 // UnmarshalBinary interface implementation
-func (m *PaymentCreation) UnmarshalBinary(b []byte) error {
-	var res PaymentCreation
+func (m *PaymentCreationRequest) UnmarshalBinary(b []byte) error {
+	var res PaymentCreationRequest
 	if err := swag.ReadJSON(b, &res); err != nil {
 		return err
 	}
