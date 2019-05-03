@@ -15,7 +15,7 @@ type PaymentsAPI struct {
 
 // CreatePayment Adds a new payment with the data included in params
 func (papi *PaymentsAPI) CreatePayment(ctx context.Context, params payments.CreatePaymentParams) middleware.Responder {
-	payment := (*params.PaymentCreationRequest).Data
-	resp := &models.PaymentCreationResponse{Data: payment}
+	payment := *params.PaymentCreationRequest.Data
+	resp := &models.PaymentCreationResponse{Data: &payment}
 	return payments.NewCreatePaymentCreated().WithPayload(resp)
 }

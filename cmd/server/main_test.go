@@ -24,7 +24,7 @@ func init() {
 	id := strfmt.UUID("4ee3a8d8-ca7b-4290-a52c-dd5b6165ec43")
 	version := int64(0)
 	orgID := strfmt.UUID("743d5b63-8e6f-432e-a8fa-c5d8d2ee5fcb")
-	procDate, _ := time.Parse(time.RFC3339, "2017-01-18")
+	procDate, _ := time.Parse(strfmt.RFC3339FullDate, "2017-01-18")
 
 	testPayment = models.Payment{
 		Type:           "Payment",
