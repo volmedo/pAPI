@@ -17,7 +17,10 @@ swagger.generate.server: swagger.clean
 swagger.generate.client:
 	$(swagger) generate client --spec=$(spec) --template=stratoscale --target=$(pkg_dir) --skip-models
 
-test:
-	go test ./...
+lint:
+	golangci-lint run --no-config --skip-dirs "$(pkg_dir)/(client|models|restapi)" --disable unused
 
-.PHONY: swagger.validate swagger.clean swagger.generate.client swagger.generate test
+test:
+	go test -v -race ./$(pkg_dir)/impl ./$(cmd_dir)/server
+
+.PHONY: swagger.validate swagger.clean swagger.generate.client swagger.generate lint test
