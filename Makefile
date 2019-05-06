@@ -1,8 +1,13 @@
 spec = pAPI-swagger.yaml
 pkg_dir = pkg
 cmd_dir = cmd
+
 swagger_ver = v0.19.0
 swagger = docker run --rm -e GOPATH=/go -v "$(PWD)":"$(PWD)" -w "$(PWD)" quay.io/goswagger/swagger:$(swagger_ver)
+
+terraform_dir = terraform
+terraform_ver = 0.11.13
+terraform = docker run --rm -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -v "$(PWD)":"$(PWD)" -w "$(PWD)/$(terraform_dir)" hashicorp/terraform:$(terraform_ver)
 
 swagger.validate:
 	$(swagger) validate $(spec)
@@ -23,4 +28,13 @@ lint:
 test:
 	go test -v -race ./$(pkg_dir)/impl ./$(cmd_dir)/server
 
-.PHONY: swagger.validate swagger.clean swagger.generate.client swagger.generate lint test
+terraform.init:
+	@$(terraform) init
+
+terraform.apply:
+	@$(terraform) apply -input=false -auto-approve
+
+terraform.destroy:
+	@$(terraform) destroy -auto-approve
+
+.PHONY: swagger.validate swagger.clean swagger.generate.client swagger.generate lint test terraform.init terraform.apply terraform.destroy
