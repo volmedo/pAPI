@@ -1,6 +1,12 @@
 resource "aws_instance" "papi-server" {
   ami           = "${data.aws_ami.amazon-linux-2.id}"
   instance_type = "t2.micro"
+
+  vpc_security_group_ids = [
+    "${aws_security_group.allow_ssh.id}",
+    "${aws_security_group.allow_http.id}",
+    "${aws_security_group.allow_outbound.id}",
+  ]
 }
 
 data "aws_ami" "amazon-linux-2" {
