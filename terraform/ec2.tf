@@ -1,12 +1,11 @@
 resource "aws_instance" "papi-server" {
-#  ami           = "ami-09ead922c1dad67e4"
-  ami = "${data.aws_ami.amazon-linux-2.id}"
+  ami           = "${data.aws_ami.amazon-linux-2.id}"
   instance_type = "t2.micro"
 }
 
 data "aws_ami" "amazon-linux-2" {
   most_recent = true
-  owners = ["amazon"]
+  owners      = ["amazon"]
 
   filter {
     name   = "name"
