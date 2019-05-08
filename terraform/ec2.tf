@@ -14,6 +14,19 @@ resource "aws_instance" "papi-server" {
     user        = "ec2-user"
     private_key = "${file("${var.ssh-key-path}")}"
   }
+
+  provisioner "file" {
+    source      = "${var.srv-bin-path}"
+    destination = "/home/ec2-user/${basename(var.srv-bin-path)}"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "chmod +x /home/ec2-user/${basename(var.srv-bin-path)}",
+      "nohup /home/ec2-user/${basename(var.srv-bin-path)} &",
+      "sleep 1",
+    ] # this feels hacky :S
+  }
 }
 
 data "aws_ami" "amazon-linux-2" {
