@@ -42,6 +42,12 @@ terraform.keygen:
 terraform.init:
 	@$(TERRAFORM) init
 
+terraform.chkfmt:
+	@$(TERRAFORM) fmt -check=true
+
+terraform.validate:
+	@$(TERRAFORM) validate -var "srv-bin-path=$(PWD)/$(SRV_BIN_NAME)" -var "ssh-key-path=$(TF_SSH_KEY_PATH)"
+
 terraform.apply:
 	@$(TERRAFORM) apply -var "srv-bin-path=$(PWD)/$(SRV_BIN_NAME)" -var "ssh-key-path=$(TF_SSH_KEY_PATH)" -input=false -auto-approve
 
