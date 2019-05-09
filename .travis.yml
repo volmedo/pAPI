@@ -15,7 +15,10 @@ script:
   - make lint
   - make test
   - make build
-  - make terraform.keygen
-  - make terraform.init
   - make terraform.chkfmt
+  - make terraform.init
+  - make terraform.keygen
   - make terraform.validate
+  - make terraform.apply
+  - make terraform.output
+  - make terraform.destroy

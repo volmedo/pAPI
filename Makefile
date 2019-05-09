@@ -54,6 +54,9 @@ terraform.validate:
 terraform.apply:
 	@$(TERRAFORM) apply -var "srv-bin-path=$(PWD)/$(SRV_BIN_NAME)" -var "ssh-key-path=$(TF_SSH_KEY_PATH)" -input=false -auto-approve
 
+terraform.output:
+	$(TERRAFORM) output
+
 terraform.destroy:
 	@$(TERRAFORM) destroy -var "srv-bin-path=$(PWD)/$(SRV_BIN_NAME)" -var "ssh-key-path=$(TF_SSH_KEY_PATH)" -auto-approve
 
