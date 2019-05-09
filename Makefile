@@ -7,6 +7,9 @@ CMD = cmd
 SWAGGER_VER = v0.19.0
 SWAGGER = docker run --rm -e GOPATH=/go -v "$(PWD)":"$(PWD)" -w "$(PWD)" quay.io/goswagger/swagger:$(SWAGGER_VER)
 
+GOLANGCI_LINT_VER = v1.16.0
+GOLANGCI_LINT = docker run --rm -v "$(PWD)":"$(PWD)" -w "$(PWD)" golangci/golangci-lint:$(GOLANGCI_LINT_VER)
+
 TF_SSH_KEY_PATH = "$(PWD)/tf_ssh_key"
 TF_DIR = terraform
 TF_VER = 0.11.13
@@ -28,7 +31,7 @@ swagger.generate.client:
 	$(SWAGGER) generate client --spec=$(SPEC) --template=stratoscale --target=$(PKG) --skip-models
 
 lint:
-	golangci-lint run --no-config --skip-dirs "$(PKG)/(client|models|restapi)" --disable unused
+	$(GOLANGCI_LINT) golangci-lint run --no-config --skip-dirs "$(PKG)/(client|models|restapi)" --disable unused
 
 test:
 	go test -v -race ./$(PKG)/impl ./$(CMD)/server
