@@ -20,5 +20,5 @@ script:
   - make terraform.keygen
   - make terraform.validate
   - make terraform.apply
-  - make terraform.output
+  - make test-e2e
   - make terraform.destroy

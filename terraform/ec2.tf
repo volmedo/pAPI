@@ -23,7 +23,7 @@ resource "aws_instance" "papi-server" {
   provisioner "remote-exec" {
     inline = [
       "chmod +x /home/ec2-user/${basename(var.srv-bin-path)}",
-      "nohup /home/ec2-user/${basename(var.srv-bin-path)} &",
+      "nohup /home/ec2-user/${basename(var.srv-bin-path)} -port=${var.srv-port} &",
       "sleep 1",
     ] # this feels hacky :S
   }
@@ -44,6 +44,10 @@ resource "aws_key_pair" "ssh-key" {
   public_key = "${file("${var.ssh-key-path}.pub")}"
 }
 
-output "papi-server-ip" {
+output "host-ip" {
   value = "${aws_instance.papi-server.public_ip}"
+}
+
+output "server-port" {
+  value = "${var.srv-port}"
 }
