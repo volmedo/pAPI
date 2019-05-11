@@ -95,76 +95,41 @@ func TestCreatePayment(t *testing.T) {
 		PaymentCreationRequest: &models.PaymentCreationRequest{Data: &testPayment},
 	}
 
-	responder := api.CreatePayment(ctx, params)
-	if responder == nil {
-		t.Fatal("The returned responder should not be nil")
-	}
+	t.Run("create payment", func(t *testing.T) {
+		responder := api.CreatePayment(ctx, params)
+		if responder == nil {
+			t.Fatal("The returned responder should not be nil")
+		}
 
-	rr := httptest.NewRecorder()
-	responder.WriteResponse(rr, runtime.JSONProducer())
+		rr := httptest.NewRecorder()
+		responder.WriteResponse(rr, runtime.JSONProducer())
 
-	if rr.Code != http.StatusCreated {
-		t.Errorf("Wrong status code: got %v, expected %v", rr.Code, http.StatusCreated)
-	}
+		if rr.Code != http.StatusCreated {
+			t.Errorf("Wrong status code: got %v, expected %v", rr.Code, http.StatusCreated)
+		}
 
-	var respBody models.PaymentCreationResponse
-	err := json.Unmarshal(rr.Body.Bytes(), &respBody)
-	if err != nil {
-		t.Errorf("Malformed JSON in response: %v", err)
-	}
+		var respBody models.PaymentCreationResponse
+		err := json.Unmarshal(rr.Body.Bytes(), &respBody)
+		if err != nil {
+			t.Errorf("Malformed JSON in response: %v", err)
+		}
 
-	if !reflect.DeepEqual(testPayment, *respBody.Data) {
-		t.Fatal("Payment data in request and response don't match")
-	}
-}
+		if !reflect.DeepEqual(testPayment, *respBody.Data) {
+			t.Fatal("Payment data in request and response don't match")
+		}
+	})
 
-func TestCreateDuplicatedPayment(t *testing.T) {
-	api := impl.NewPaymentsAPI()
+	t.Run("create duplicated payment", func(t *testing.T) {
+		responder := api.CreatePayment(ctx, params)
+		if responder == nil {
+			t.Fatal("The returned responder should not be nil")
+		}
 
-	ctx := context.Background()
-	params := payments.CreatePaymentParams{
-		HTTPRequest:            nil,
-		PaymentCreationRequest: &models.PaymentCreationRequest{Data: &testPayment},
-	}
+		rr := httptest.NewRecorder()
+		responder.WriteResponse(rr, runtime.JSONProducer())
 
-	responder := api.CreatePayment(ctx, params)
-	if responder == nil {
-		t.Fatal("The returned responder should not be nil")
-	}
-
-	rr := httptest.NewRecorder()
-	responder.WriteResponse(rr, runtime.JSONProducer())
-
-	if rr.Code != http.StatusCreated {
-		t.Errorf("Wrong status code: got %v, expected %v", rr.Code, http.StatusCreated)
-	}
-
-	var respBody models.PaymentCreationResponse
-	err := json.Unmarshal(rr.Body.Bytes(), &respBody)
-	if err != nil {
-		t.Errorf("Malformed JSON in response: %v", err)
-	}
-
-	if !reflect.DeepEqual(testPayment, *respBody.Data) {
-		t.Fatal("Payment data in request and response don't match")
-	}
-
-	// Try creating the same payment again
-	ctx = context.Background()
-	params = payments.CreatePaymentParams{
-		HTTPRequest:            nil,
-		PaymentCreationRequest: &models.PaymentCreationRequest{Data: &testPayment},
-	}
-
-	responder = api.CreatePayment(ctx, params)
-	if responder == nil {
-		t.Fatal("The returned responder should not be nil")
-	}
-
-	rr = httptest.NewRecorder()
-	responder.WriteResponse(rr, runtime.JSONProducer())
-
-	if rr.Code != http.StatusConflict {
-		t.Errorf("Wrong status code: got %v, expected %v", rr.Code, http.StatusConflict)
-	}
+		if rr.Code != http.StatusConflict {
+			t.Errorf("Wrong status code: got %v, expected %v", rr.Code, http.StatusConflict)
+		}
+	})
 }
