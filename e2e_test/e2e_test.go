@@ -11,12 +11,10 @@ import (
 	"os"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/DATA-DOG/godog"
 	"github.com/DATA-DOG/godog/colors"
 	"github.com/DATA-DOG/godog/gherkin"
-	"github.com/go-openapi/strfmt"
 
 	"github.com/volmedo/pAPI/pkg/client"
 	"github.com/volmedo/pAPI/pkg/client/payments"
@@ -29,8 +27,6 @@ var (
 	port     int
 	basePath string
 
-	testPayment models.Payment
-
 	opt = godog.Options{
 		Output: colors.Colored(os.Stdout),
 		Format: "progress",
@@ -39,71 +35,6 @@ var (
 
 func init() {
 	godog.BindFlags("godog.", flag.CommandLine, &opt)
-
-	id := strfmt.UUID("4ee3a8d8-ca7b-4290-a52c-dd5b6165ec43")
-	version := int64(0)
-	orgID := strfmt.UUID("743d5b63-8e6f-432e-a8fa-c5d8d2ee5fcb")
-	procDate, _ := time.Parse(strfmt.RFC3339FullDate, "2017-01-18")
-
-	testPayment = models.Payment{
-		Type:           "Payment",
-		ID:             &id,
-		Version:        &version,
-		OrganisationID: &orgID,
-		Attributes: &models.PaymentAttributes{
-			Amount: "100.21",
-			BeneficiaryParty: &models.PaymentParty{
-				AccountName:       "W Owens",
-				AccountNumber:     models.AccountNumber("31926819"),
-				AccountNumberCode: "BBAN",
-				AccountType:       0,
-				Address:           "1 The Beneficiary Localtown SE2",
-				BankID:            "403000",
-				BankIDCode:        "GBDSC",
-				Name:              "Wilfred Jeremiah Owens",
-			},
-			ChargesInformation: &models.ChargesInformation{
-				BearerCode:              "SHAR",
-				ReceiverChargesAmount:   "1.00",
-				ReceiverChargesCurrency: "USD",
-				SenderCharges: []*models.ChargesInformationSenderChargesItems0{
-					{Amount: "5.00", Currency: "GBP"},
-					{Amount: "10.00", Currency: "USD"},
-				},
-			},
-			Currency: "GBP",
-			DebtorParty: &models.PaymentParty{
-				AccountName:       "EJ Brown Black",
-				AccountNumber:     "GB29XABC10161234567801",
-				AccountNumberCode: "IBAN",
-				Address:           "10 Debtor Crescent Sourcetown NE1",
-				BankID:            "203301",
-				BankIDCode:        "GBDSC",
-				Name:              "Emelia Jane Brown",
-			},
-			EndToEndReference: "Wil piano Jan",
-			Fx: &models.PaymentAttributesFx{
-				ContractReference: "FX123",
-				ExchangeRate:      "2.00000",
-				OriginalAmount:    "200.42",
-				OriginalCurrency:  "USD",
-			},
-			NumericReference:     "1002001",
-			PaymentID:            "123456789012345678",
-			PaymentPurpose:       "Paying for goods/services",
-			PaymentScheme:        "FPS",
-			PaymentType:          "Credit",
-			ProcessingDate:       strfmt.Date(procDate),
-			Reference:            "Payment for Em's piano lessons",
-			SchemePaymentSubType: "InternetBanking",
-			SchemePaymentType:    "ImmediatePayment",
-			SponsorParty: &models.PaymentAttributesSponsorParty{
-				AccountNumber: "56781234",
-				BankID:        "123123",
-				BankIDCode:    "GBDSC",
-			},
-		},
-	}
 }
 
 type Client struct {
@@ -119,8 +50,15 @@ func newClient(apiURL *url.URL) *Client {
 }
 
 func (c *Client) iCreateANewPaymentDescribedInJSONAs(jsonPayment *gherkin.DocString) error {
+	var payment models.Payment
+	decoder := json.NewDecoder(bytes.NewBuffer([]byte(jsonPayment.Content)))
+	err := decoder.Decode(&payment)
+	if err != nil {
+		return fmt.Errorf("Invalid JSON string in test specification: %s", err)
+	}
+
 	ctx := context.Background()
-	req := &models.PaymentCreationRequest{Data: &testPayment}
+	req := &models.PaymentCreationRequest{Data: &payment}
 	params := payments.NewCreatePaymentParams().WithPaymentCreationRequest(req)
 
 	c.lastResponse, c.lastError = c.CreatePayment(ctx, params)
