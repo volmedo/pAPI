@@ -5,28 +5,41 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"net/url"
+	"os"
 	"reflect"
+	"testing"
 	"time"
 
 	"github.com/DATA-DOG/godog"
+	"github.com/DATA-DOG/godog/colors"
 	"github.com/DATA-DOG/godog/gherkin"
 	"github.com/go-openapi/strfmt"
+
 	"github.com/volmedo/pAPI/pkg/client"
 	"github.com/volmedo/pAPI/pkg/client/payments"
 	"github.com/volmedo/pAPI/pkg/models"
 )
 
-const (
-	serverURL  = "http://localhost"
-	serverPort = "8080"
-	apiRoot    = "/v1/"
+var (
+	scheme   string
+	host     string
+	port     int
+	basePath string
+
+	testPayment models.Payment
+
+	opt = godog.Options{
+		Output: colors.Colored(os.Stdout),
+		Format: "progress",
+	}
 )
 
-var testPayment models.Payment
-
 func init() {
+	godog.BindFlags("godog.", flag.CommandLine, &opt)
+
 	id := strfmt.UUID("4ee3a8d8-ca7b-4290-a52c-dd5b6165ec43")
 	version := int64(0)
 	orgID := strfmt.UUID("743d5b63-8e6f-432e-a8fa-c5d8d2ee5fcb")
@@ -99,8 +112,7 @@ type Client struct {
 	lastError    error
 }
 
-func newClient() *Client {
-	apiURL, _ := url.Parse(serverURL + ":" + serverPort + apiRoot)
+func newClient(apiURL *url.URL) *Client {
 	conf := client.Config{URL: apiURL}
 	payments := client.New(conf)
 	return &Client{payments.Payments, nil, nil}
@@ -143,8 +155,32 @@ func (c *Client) theResponseContainsAPaymentDescribedInJSONAs(jsonPayment *gherk
 	return nil
 }
 
+func TestMain(m *testing.M) {
+	flag.StringVar(&scheme, "scheme", "http", "Scheme to use to communicate with the server ('http' or 'https')")
+	flag.StringVar(&host, "host", client.DefaultHost, "Address or URL of the server serving the Payments API (such as 'localhost' or 'api.example.com')")
+	flag.IntVar(&port, "port", 8080, "Port where the server is listening for connections")
+	flag.StringVar(&basePath, "base-path", client.DefaultBasePath, "Base path for API endpoints")
+
+	flag.Parse()
+	opt.Paths = flag.Args()
+
+	status := godog.RunWithOptions("papi-e2e", func(s *godog.Suite) {
+		FeatureContext(s)
+	}, opt)
+
+	if st := m.Run(); st > status {
+		status = st
+	}
+	os.Exit(status)
+}
+
 func FeatureContext(s *godog.Suite) {
-	client := newClient()
+	apiURL := &url.URL{
+		Scheme: scheme,
+		Host:   fmt.Sprintf("%s:%d", host, port),
+		Path:   basePath,
+	}
+	client := newClient(apiURL)
 
 	s.Step(`^I create a new payment described in JSON as:$`, client.iCreateANewPaymentDescribedInJSONAs)
 	s.Step(`^I get a "([^"]*)" response$`, client.iGetAResponse)
