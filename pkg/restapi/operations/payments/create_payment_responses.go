@@ -56,3 +56,47 @@ func (o *CreatePaymentCreated) WriteResponse(rw http.ResponseWriter, producer ru
 		}
 	}
 }
+
+// CreatePaymentConflictCode is the HTTP code returned for type CreatePaymentConflict
+const CreatePaymentConflictCode int = 409
+
+/*CreatePaymentConflict A payment with the given ID already exists
+
+swagger:response createPaymentConflict
+*/
+type CreatePaymentConflict struct {
+
+	/*
+	  In: Body
+	*/
+	Payload *models.APIError `json:"body,omitempty"`
+}
+
+// NewCreatePaymentConflict creates CreatePaymentConflict with default headers values
+func NewCreatePaymentConflict() *CreatePaymentConflict {
+
+	return &CreatePaymentConflict{}
+}
+
+// WithPayload adds the payload to the create payment conflict response
+func (o *CreatePaymentConflict) WithPayload(payload *models.APIError) *CreatePaymentConflict {
+	o.Payload = payload
+	return o
+}
+
+// SetPayload sets the payload to the create payment conflict response
+func (o *CreatePaymentConflict) SetPayload(payload *models.APIError) {
+	o.Payload = payload
+}
+
+// WriteResponse to the client
+func (o *CreatePaymentConflict) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+
+	rw.WriteHeader(409)
+	if o.Payload != nil {
+		payload := o.Payload
+		if err := producer.Produce(rw, payload); err != nil {
+			panic(err) // let the recovery middleware deal with this
+		}
+	}
+}

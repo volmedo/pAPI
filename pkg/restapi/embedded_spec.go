@@ -58,6 +58,12 @@ func init() {
             "schema": {
               "$ref": "#/definitions/PaymentCreationResponse"
             }
+          },
+          "409": {
+            "description": "A payment with the given ID already exists",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
           }
         }
       }
@@ -74,6 +80,18 @@ func init() {
       "type": "string",
       "pattern": "^[0-9.]{0,20}$",
       "example": "10.00"
+    },
+    "ApiError": {
+      "type": "object",
+      "properties": {
+        "error_code": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "error_message": {
+          "type": "string"
+        }
+      }
     },
     "BankId": {
       "description": "Financial institution identification",
@@ -444,6 +462,12 @@ func init() {
             "schema": {
               "$ref": "#/definitions/PaymentCreationResponse"
             }
+          },
+          "409": {
+            "description": "A payment with the given ID already exists",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
           }
         }
       }
@@ -460,6 +484,18 @@ func init() {
       "type": "string",
       "pattern": "^[0-9.]{0,20}$",
       "example": "10.00"
+    },
+    "ApiError": {
+      "type": "object",
+      "properties": {
+        "error_code": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "error_message": {
+          "type": "string"
+        }
+      }
     },
     "BankId": {
       "description": "Financial institution identification",

@@ -9,6 +9,11 @@ definitions:
     example: "10.00"
     pattern: ^[0-9.]{0,20}$
     type: string
+  ApiError:
+    properties:
+      error_code: { format: uuid, type: string }
+      error_message: { type: string }
+    type: object
   BankId:
     description: Financial institution identification
     example: "333333"
@@ -281,6 +286,10 @@ paths:
           description: Payment created successfully
           schema:
             $ref: "#/definitions/PaymentCreationResponse"
+        409:
+          description: A payment with the given ID already exists
+          schema:
+            $ref: "#/definitions/ApiError"
       summary: Create payment
       tags: [Payments]
 produces: [application/vnd.api+json]

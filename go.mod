@@ -11,4 +11,5 @@ require (
 	github.com/go-openapi/strfmt v0.19.0
 	github.com/go-openapi/swag v0.19.0
 	github.com/go-openapi/validate v0.19.0
+	github.com/gofrs/uuid v3.2.0+incompatible
 )
