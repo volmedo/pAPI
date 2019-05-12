@@ -15,6 +15,7 @@ import (
 	"github.com/DATA-DOG/godog"
 	"github.com/DATA-DOG/godog/colors"
 	"github.com/DATA-DOG/godog/gherkin"
+	"github.com/go-openapi/strfmt"
 
 	"github.com/volmedo/pAPI/pkg/client"
 	"github.com/volmedo/pAPI/pkg/client/payments"
@@ -39,7 +40,7 @@ func init() {
 
 type Client struct {
 	*payments.Client
-	lastResponse *payments.CreatePaymentCreated
+	lastResponse interface{}
 	lastError    error
 }
 
@@ -65,6 +66,14 @@ func (c *Client) iCreateANewPaymentDescribedInJSONAs(jsonPayment *gherkin.DocStr
 	return nil
 }
 
+func (c *Client) iRequestThePaymentWithID(paymentID string) error {
+	ctx := context.Background()
+	params := payments.NewGetPaymentParams().WithID(strfmt.UUID(paymentID))
+
+	c.lastResponse, c.lastError = c.GetPayment(ctx, params)
+	return nil
+}
+
 func (c *Client) iGetAResponse(expectedStatus string) error {
 	// An error will be raised in case of error but also if the StatusCode in the response
 	// doesn't match the expected status, the generated code already takes care of this
@@ -76,8 +85,21 @@ func (c *Client) iGetAResponse(expectedStatus string) error {
 }
 
 func (c *Client) theResponseContainsAPaymentDescribedInJSONAs(jsonPayment *gherkin.DocString) error {
-	resp := c.lastResponse
-	gotPayment := *resp.Payload.Data
+	var gotPayment models.Payment
+	switch resp := c.lastResponse.(type) {
+	case *payments.CreatePaymentCreated:
+		respData := resp.Payload.Data
+		if respData == nil {
+			return errors.New("Empty response")
+		}
+		gotPayment = *respData
+	case *payments.GetPaymentOK:
+		respData := resp.Payload.Data
+		if respData == nil {
+			return errors.New("Empty response")
+		}
+		gotPayment = *respData
+	}
 
 	var expectedPayment models.Payment
 	decoder := json.NewDecoder(bytes.NewBuffer([]byte(jsonPayment.Content)))
@@ -121,6 +143,9 @@ func FeatureContext(s *godog.Suite) {
 	client := newClient(apiURL)
 
 	s.Step(`^I create a new payment described in JSON as:$`, client.iCreateANewPaymentDescribedInJSONAs)
+	s.Step(`^there is a payment described in JSON as:$`, client.iCreateANewPaymentDescribedInJSONAs)
+	s.Step(`^I request the payment with ID "([^"]*)"$`, client.iRequestThePaymentWithID)
 	s.Step(`^I get a "([^"]*)" response$`, client.iGetAResponse)
+	s.Step(`^I get an "([^"]*)" response$`, client.iGetAResponse)
 	s.Step(`^the response contains a payment described in JSON as:$`, client.theResponseContainsAPaymentDescribedInJSONAs)
 }
