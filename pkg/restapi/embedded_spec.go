@@ -67,6 +67,33 @@ func init() {
           }
         }
       }
+    },
+    "/payments/{id}": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Fetch payment",
+        "operationId": "getPayment",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of payment to fetch",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment details",
+            "schema": {
+              "$ref": "#/definitions/PaymentDetailsResponse"
+            }
+          }
+        }
+      }
     }
   },
   "definitions": {
@@ -376,6 +403,17 @@ func init() {
         }
       }
     },
+    "PaymentDetailsResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/Payment"
+        },
+        "links": {
+          "$ref": "#/definitions/Links"
+        }
+      }
+    },
     "PaymentParty": {
       "type": "object",
       "properties": {
@@ -467,6 +505,33 @@ func init() {
             "description": "A payment with the given ID already exists",
             "schema": {
               "$ref": "#/definitions/ApiError"
+            }
+          }
+        }
+      }
+    },
+    "/payments/{id}": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Fetch payment",
+        "operationId": "getPayment",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of payment to fetch",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment details",
+            "schema": {
+              "$ref": "#/definitions/PaymentDetailsResponse"
             }
           }
         }
@@ -772,6 +837,17 @@ func init() {
       "required": [
         "data"
       ],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/Payment"
+        },
+        "links": {
+          "$ref": "#/definitions/Links"
+        }
+      }
+    },
+    "PaymentDetailsResponse": {
+      "type": "object",
       "properties": {
         "data": {
           "$ref": "#/definitions/Payment"

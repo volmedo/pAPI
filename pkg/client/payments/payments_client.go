@@ -19,6 +19,8 @@ import (
 type API interface {
 	// CreatePayment creates payment
 	CreatePayment(ctx context.Context, params *CreatePaymentParams) (*CreatePaymentCreated, error)
+	// GetPayment fetches payment
+	GetPayment(ctx context.Context, params *GetPaymentParams) (*GetPaymentOK, error)
 }
 
 // New creates a new payments API client.
@@ -60,5 +62,29 @@ func (a *Client) CreatePayment(ctx context.Context, params *CreatePaymentParams)
 		return nil, err
 	}
 	return result.(*CreatePaymentCreated), nil
+
+}
+
+/*
+GetPayment fetches payment
+*/
+func (a *Client) GetPayment(ctx context.Context, params *GetPaymentParams) (*GetPaymentOK, error) {
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
+		ID:                 "getPayment",
+		Method:             "GET",
+		PathPattern:        "/payments/{id}",
+		ProducesMediaTypes: []string{"application/vnd.api+json"},
+		ConsumesMediaTypes: []string{""},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &GetPaymentReader{formats: a.formats},
+		Context:            ctx,
+		Client:             params.HTTPClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*GetPaymentOK), nil
 
 }

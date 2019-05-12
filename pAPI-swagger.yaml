@@ -234,6 +234,13 @@ definitions:
     required:
       - data
     type: object
+  PaymentDetailsResponse:
+    properties:
+      data:
+        $ref: "#/definitions/Payment"
+      links:
+        $ref: "#/definitions/Links"
+    type: object
   PaymentParty:
     properties:
       account_name:
@@ -291,6 +298,23 @@ paths:
           schema:
             $ref: "#/definitions/ApiError"
       summary: Create payment
+      tags: [Payments]
+  /payments/{id}:
+    get:
+      operationId: getPayment
+      parameters:
+        - description: ID of payment to fetch
+          format: uuid
+          in: path
+          name: id
+          required: true
+          type: string
+      responses:
+        200:
+          description: Payment details
+          schema:
+            $ref: "#/definitions/PaymentDetailsResponse"
+      summary: Fetch payment
       tags: [Payments]
 produces: [application/vnd.api+json]
 schemes: [http]
