@@ -88,7 +88,9 @@ func init() {
 }
 
 func configureHandler() http.Handler {
-	papi := impl.NewPaymentsAPI()
+	papi := &impl.PaymentsAPI{
+		Repo: impl.PaymentRepository{},
+	}
 
 	handler, err := restapi.Handler(restapi.Config{
 		PaymentsAPI: papi,

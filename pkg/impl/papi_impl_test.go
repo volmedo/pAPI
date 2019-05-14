@@ -3,6 +3,7 @@ package impl_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
+	"github.com/mitchellh/copystructure"
 
 	"github.com/volmedo/pAPI/pkg/impl"
 	"github.com/volmedo/pAPI/pkg/models"
@@ -87,49 +89,80 @@ func init() {
 }
 
 func TestCreatePayment(t *testing.T) {
-	api := impl.NewPaymentsAPI()
+	testRepo := impl.PaymentRepository{}
+	api := impl.PaymentsAPI{Repo: testRepo}
 
-	ctx := context.Background()
 	params := payments.CreatePaymentParams{
 		HTTPRequest:            nil,
 		PaymentCreationRequest: &models.PaymentCreationRequest{Data: &testPayment},
 	}
 
-	t.Run("create payment", func(t *testing.T) {
-		responder := api.CreatePayment(ctx, params)
-		if responder == nil {
-			t.Fatal("The returned responder should not be nil")
-		}
+	rr, err := doRequest(api, params)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
 
-		rr := httptest.NewRecorder()
-		responder.WriteResponse(rr, runtime.JSONProducer())
+	if rr.Code != http.StatusCreated {
+		t.Errorf("Wrong status code: got %v, expected %v", rr.Code, http.StatusCreated)
+	}
 
-		if rr.Code != http.StatusCreated {
-			t.Errorf("Wrong status code: got %v, expected %v", rr.Code, http.StatusCreated)
-		}
+	var respBody models.PaymentCreationResponse
+	err = json.Unmarshal(rr.Body.Bytes(), &respBody)
+	if err != nil {
+		t.Errorf("Malformed JSON in response: %v", err)
+	}
 
-		var respBody models.PaymentCreationResponse
-		err := json.Unmarshal(rr.Body.Bytes(), &respBody)
-		if err != nil {
-			t.Errorf("Malformed JSON in response: %v", err)
-		}
+	if !reflect.DeepEqual(testPayment, *respBody.Data) {
+		t.Fatal("Payment data in request and response don't match")
+	}
+}
 
-		if !reflect.DeepEqual(testPayment, *respBody.Data) {
-			t.Fatal("Payment data in request and response don't match")
-		}
-	})
+func TestCreateConflictingPayment(t *testing.T) {
+	payment, err := copyPayment(&testPayment)
+	testRepo := impl.PaymentRepository{
+		*payment.ID: payment,
+	}
+	api := impl.PaymentsAPI{Repo: testRepo}
 
-	t.Run("create duplicated payment", func(t *testing.T) {
-		responder := api.CreatePayment(ctx, params)
-		if responder == nil {
-			t.Fatal("The returned responder should not be nil")
-		}
+	params := payments.CreatePaymentParams{
+		HTTPRequest:            nil,
+		PaymentCreationRequest: &models.PaymentCreationRequest{Data: &testPayment},
+	}
 
-		rr := httptest.NewRecorder()
-		responder.WriteResponse(rr, runtime.JSONProducer())
+	rr, err := doRequest(api, params)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
 
-		if rr.Code != http.StatusConflict {
-			t.Errorf("Wrong status code: got %v, expected %v", rr.Code, http.StatusConflict)
-		}
-	})
+	if rr.Code != http.StatusConflict {
+		t.Errorf("Wrong status code: got %v, expected %v", rr.Code, http.StatusConflict)
+	}
+}
+
+func copyPayment(payment *models.Payment) (*models.Payment, error) {
+	dup, err := copystructure.Copy(*payment)
+	if err != nil {
+		return nil, err
+	}
+	paymentDup, ok := dup.(models.Payment)
+	if !ok {
+		return nil, errors.New("Error copying payment")
+	}
+
+	return &paymentDup, nil
+}
+
+func doRequest(api impl.PaymentsAPI, params payments.CreatePaymentParams) (*httptest.ResponseRecorder, error) {
+	ctx := context.Background()
+
+	responder := api.CreatePayment(ctx, params)
+
+	if responder == nil {
+		errors.New("The returned responder should not be nil")
+	}
+
+	rr := httptest.NewRecorder()
+	responder.WriteResponse(rr, runtime.JSONProducer())
+
+	return rr, nil
 }

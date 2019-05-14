@@ -14,7 +14,9 @@ func main() {
 	port := flag.Int("port", 8080, "Port where the server is listening for connections.")
 	flag.Parse()
 
-	p := impl.NewPaymentsAPI()
+	p := &impl.PaymentsAPI{
+		Repo: impl.PaymentRepository{},
+	}
 
 	handler, err := restapi.Handler(restapi.Config{
 		PaymentsAPI: p,
