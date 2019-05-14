@@ -43,5 +43,12 @@ func (papi *PaymentsAPI) CreatePayment(ctx context.Context, params payments.Crea
 
 // GetPayment Returns details of a payment identified by its ID
 func (papi *PaymentsAPI) GetPayment(ctx context.Context, params payments.GetPaymentParams) middleware.Responder {
+	paymentID := params.ID.DeepCopy()
+	if payment, ok := papi.Repo[*paymentID]; ok {
+		respData := *payment
+		resp := &models.PaymentDetailsResponse{Data: &respData}
+		return payments.NewGetPaymentOK().WithPayload(resp)
+	}
+
 	return nil
 }

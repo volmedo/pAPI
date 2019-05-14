@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/go-openapi/runtime"
+	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/strfmt"
 	"github.com/mitchellh/copystructure"
 
@@ -93,7 +95,6 @@ func TestCreatePayment(t *testing.T) {
 	api := impl.PaymentsAPI{Repo: testRepo}
 
 	params := payments.CreatePaymentParams{
-		HTTPRequest:            nil,
 		PaymentCreationRequest: &models.PaymentCreationRequest{Data: &testPayment},
 	}
 
@@ -107,7 +108,8 @@ func TestCreatePayment(t *testing.T) {
 	}
 
 	var respBody models.PaymentCreationResponse
-	err = json.Unmarshal(rr.Body.Bytes(), &respBody)
+	decoder := json.NewDecoder(rr.Body)
+	err = decoder.Decode(&respBody)
 	if err != nil {
 		t.Errorf("Malformed JSON in response: %v", err)
 	}
@@ -125,10 +127,8 @@ func TestCreateConflictingPayment(t *testing.T) {
 	api := impl.PaymentsAPI{Repo: testRepo}
 
 	params := payments.CreatePaymentParams{
-		HTTPRequest:            nil,
 		PaymentCreationRequest: &models.PaymentCreationRequest{Data: &testPayment},
 	}
-
 	rr, err := doRequest(api, params)
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -139,7 +139,47 @@ func TestCreateConflictingPayment(t *testing.T) {
 	}
 }
 
+func TestGetPayment(t *testing.T) {
+	payment, err := copyPayment(&testPayment)
+	testRepo := impl.PaymentRepository{
+		*payment.ID: payment,
+	}
+	api := impl.PaymentsAPI{Repo: testRepo}
+
+	pID := testPayment.ID.DeepCopy()
+	params := payments.GetPaymentParams{ID: *pID}
+	rr, err := doRequest(api, params)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Wrong status code: got %v, expected %v", rr.Code, http.StatusOK)
+	}
+
+	var respBody models.PaymentDetailsResponse
+	decoder := json.NewDecoder(rr.Body)
+	err = decoder.Decode(&respBody)
+	if err != nil {
+		t.Errorf("Malformed JSON in response: %v", err)
+	}
+
+	if !reflect.DeepEqual(testPayment, *respBody.Data) {
+		t.Fatal("Payment data in request and response don't match")
+	}
+}
+
 func copyPayment(payment *models.Payment) (*models.Payment, error) {
+	dateCopier := func(d interface{}) (interface{}, error) {
+		date, ok := d.(strfmt.Date)
+		if !ok {
+			return nil, fmt.Errorf("Wrong type: %T", d)
+		}
+
+		dup := date.DeepCopy()
+		return *dup, nil
+	}
+	copystructure.Copiers[reflect.TypeOf(strfmt.Date{})] = dateCopier
 	dup, err := copystructure.Copy(*payment)
 	if err != nil {
 		return nil, err
@@ -152,13 +192,21 @@ func copyPayment(payment *models.Payment) (*models.Payment, error) {
 	return &paymentDup, nil
 }
 
-func doRequest(api impl.PaymentsAPI, params payments.CreatePaymentParams) (*httptest.ResponseRecorder, error) {
+func doRequest(api impl.PaymentsAPI, params interface{}) (*httptest.ResponseRecorder, error) {
 	ctx := context.Background()
 
-	responder := api.CreatePayment(ctx, params)
+	var responder middleware.Responder
+	switch p := params.(type) {
+	case payments.CreatePaymentParams:
+		responder = api.CreatePayment(ctx, p)
+	case payments.GetPaymentParams:
+		responder = api.GetPayment(ctx, p)
+	default:
+		return nil, fmt.Errorf("Unknown params type: %T", p)
+	}
 
 	if responder == nil {
-		errors.New("The returned responder should not be nil")
+		return nil, errors.New("The returned responder should not be nil")
 	}
 
 	rr := httptest.NewRecorder()
