@@ -88,6 +88,20 @@ func init() {
 			},
 		},
 	}
+
+	// Configuration for copystructure package to correctly copy strfmt.Date
+	// Copy operation on this type fails if a custom copier function is not provided
+	// because of the strfmt.RFC3339FullDate custom format
+	dateCopier := func(d interface{}) (interface{}, error) {
+		date, ok := d.(strfmt.Date)
+		if !ok {
+			return nil, fmt.Errorf("Wrong type: %T", d)
+		}
+
+		dup := date.DeepCopy()
+		return *dup, nil
+	}
+	copystructure.Copiers[reflect.TypeOf(strfmt.Date{})] = dateCopier
 }
 
 func TestCreatePayment(t *testing.T) {
@@ -120,7 +134,7 @@ func TestCreatePayment(t *testing.T) {
 }
 
 func TestCreateConflictingPayment(t *testing.T) {
-	payment, err := copyPayment(&testPayment)
+	payment, _ := copyPayment(&testPayment)
 	testRepo := impl.PaymentRepository{
 		*payment.ID: payment,
 	}
@@ -140,7 +154,7 @@ func TestCreateConflictingPayment(t *testing.T) {
 }
 
 func TestGetPayment(t *testing.T) {
-	payment, err := copyPayment(&testPayment)
+	payment, _ := copyPayment(&testPayment)
 	testRepo := impl.PaymentRepository{
 		*payment.ID: payment,
 	}
@@ -186,16 +200,6 @@ func TestGetNonExistentPayment(t *testing.T) {
 }
 
 func copyPayment(payment *models.Payment) (*models.Payment, error) {
-	dateCopier := func(d interface{}) (interface{}, error) {
-		date, ok := d.(strfmt.Date)
-		if !ok {
-			return nil, fmt.Errorf("Wrong type: %T", d)
-		}
-
-		dup := date.DeepCopy()
-		return *dup, nil
-	}
-	copystructure.Copiers[reflect.TypeOf(strfmt.Date{})] = dateCopier
 	dup, err := copystructure.Copy(*payment)
 	if err != nil {
 		return nil, err
