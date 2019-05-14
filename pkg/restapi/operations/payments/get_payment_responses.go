@@ -56,3 +56,47 @@ func (o *GetPaymentOK) WriteResponse(rw http.ResponseWriter, producer runtime.Pr
 		}
 	}
 }
+
+// GetPaymentNotFoundCode is the HTTP code returned for type GetPaymentNotFound
+const GetPaymentNotFoundCode int = 404
+
+/*GetPaymentNotFound Payment Not Found
+
+swagger:response getPaymentNotFound
+*/
+type GetPaymentNotFound struct {
+
+	/*
+	  In: Body
+	*/
+	Payload *models.APIError `json:"body,omitempty"`
+}
+
+// NewGetPaymentNotFound creates GetPaymentNotFound with default headers values
+func NewGetPaymentNotFound() *GetPaymentNotFound {
+
+	return &GetPaymentNotFound{}
+}
+
+// WithPayload adds the payload to the get payment not found response
+func (o *GetPaymentNotFound) WithPayload(payload *models.APIError) *GetPaymentNotFound {
+	o.Payload = payload
+	return o
+}
+
+// SetPayload sets the payload to the get payment not found response
+func (o *GetPaymentNotFound) SetPayload(payload *models.APIError) {
+	o.Payload = payload
+}
+
+// WriteResponse to the client
+func (o *GetPaymentNotFound) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+
+	rw.WriteHeader(404)
+	if o.Payload != nil {
+		payload := o.Payload
+		if err := producer.Produce(rw, payload); err != nil {
+			panic(err) // let the recovery middleware deal with this
+		}
+	}
+}

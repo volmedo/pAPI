@@ -169,6 +169,22 @@ func TestGetPayment(t *testing.T) {
 	}
 }
 
+func TestGetNonExistentPayment(t *testing.T) {
+	testRepo := impl.PaymentRepository{}
+	api := impl.PaymentsAPI{Repo: testRepo}
+
+	pID := testPayment.ID.DeepCopy()
+	params := payments.GetPaymentParams{ID: *pID}
+	rr, err := doRequest(api, params)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("Wrong status code: got %v, expected %v", rr.Code, http.StatusNotFound)
+	}
+}
+
 func copyPayment(payment *models.Payment) (*models.Payment, error) {
 	dateCopier := func(d interface{}) (interface{}, error) {
 		date, ok := d.(strfmt.Date)

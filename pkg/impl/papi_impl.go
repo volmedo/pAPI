@@ -26,12 +26,8 @@ func (papi *PaymentsAPI) CreatePayment(ctx context.Context, params payments.Crea
 	payment := *params.PaymentCreationRequest.Data
 	paymentID := payment.ID.DeepCopy()
 	if _, ok := papi.Repo[*paymentID]; ok {
-		errorCode, _ := uuid.NewV4()
-		apiError := models.APIError{
-			ErrorCode:    strfmt.UUID(errorCode.String()),
-			ErrorMessage: fmt.Sprintf("Payment ID %s already exists", paymentID),
-		}
-		return payments.NewCreatePaymentConflict().WithPayload(&apiError)
+		apiError := newAPIError(fmt.Sprintf("Payment ID %s already exists", paymentID))
+		return payments.NewCreatePaymentConflict().WithPayload(apiError)
 	}
 
 	papi.Repo[*paymentID] = &payment
@@ -50,5 +46,14 @@ func (papi *PaymentsAPI) GetPayment(ctx context.Context, params payments.GetPaym
 		return payments.NewGetPaymentOK().WithPayload(resp)
 	}
 
-	return nil
+	apiError := newAPIError(fmt.Sprintf("Payment with ID %s not found", paymentID))
+	return payments.NewGetPaymentNotFound().WithPayload(apiError)
+}
+
+func newAPIError(msg string) *models.APIError {
+	errorCode, _ := uuid.NewV4()
+	return &models.APIError{
+		ErrorCode:    strfmt.UUID(errorCode.String()),
+		ErrorMessage: msg,
+	}
 }

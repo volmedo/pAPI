@@ -314,6 +314,10 @@ paths:
           description: Payment details
           schema:
             $ref: "#/definitions/PaymentDetailsResponse"
+        404:
+          description: Payment Not Found
+          schema:
+            $ref: "#/definitions/ApiError"
       summary: Fetch payment
       tags: [Payments]
 produces: [application/vnd.api+json]

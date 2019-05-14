@@ -91,6 +91,12 @@ func init() {
             "schema": {
               "$ref": "#/definitions/PaymentDetailsResponse"
             }
+          },
+          "404": {
+            "description": "Payment Not Found",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
           }
         }
       }
@@ -532,6 +538,12 @@ func init() {
             "description": "Payment details",
             "schema": {
               "$ref": "#/definitions/PaymentDetailsResponse"
+            }
+          },
+          "404": {
+            "description": "Payment Not Found",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
             }
           }
         }
