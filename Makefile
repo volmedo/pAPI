@@ -48,6 +48,14 @@ test.component:
 build: ./$(CMD)/server/main.go
 	GOOS=$(TARGET_OS) GOARCH=$(TARGET_ARCH) $(GO) build -o $(SRV_BIN_NAME) ./$(CMD)/server/main.go
 
+test.e2e.local:
+	$(GO) build -o testsrv ./$(CMD)/server/main.go ;\
+	./testsrv -port=8080 & \
+	SERVER_PID=$$! ;\
+	$(GO) test -v -race ./$(E2E) -host=localhost -port=8080 ;\
+	kill $$SERVER_PID ;\
+	rm testsrv
+
 test.e2e:
 	$(TERRAFORM) output > tf.out ;\
 	HOST=$$(awk '/host-ip/{print $$NF}' tf.out) ;\
