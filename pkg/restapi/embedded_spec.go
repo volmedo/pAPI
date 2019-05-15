@@ -18,6 +18,9 @@ var (
 
 func init() {
 	SwaggerJSON = json.RawMessage([]byte(`{
+  "consumes": [
+    "application/vnd.api+json"
+  ],
   "produces": [
     "application/vnd.api+json"
   ],
@@ -35,9 +38,6 @@ func init() {
   "paths": {
     "/payments": {
       "post": {
-        "consumes": [
-          "application/vnd.api+json"
-        ],
         "tags": [
           "Payments"
         ],
@@ -90,6 +90,45 @@ func init() {
             "description": "Payment details",
             "schema": {
               "$ref": "#/definitions/PaymentDetailsResponse"
+            }
+          },
+          "404": {
+            "description": "Payment Not Found",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Update payment details",
+        "operationId": "updatePayment",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of payment to update",
+            "name": "id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "New payment details",
+            "name": "Payment update request",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/PaymentUpdateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment details",
+            "schema": {
+              "$ref": "#/definitions/PaymentUpdateResponse"
             }
           },
           "404": {
@@ -490,10 +529,38 @@ func init() {
           "example": "Norman Smith"
         }
       }
+    },
+    "PaymentUpdateRequest": {
+      "type": "object",
+      "required": [
+        "data"
+      ],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/Payment"
+        }
+      }
+    },
+    "PaymentUpdateResponse": {
+      "type": "object",
+      "required": [
+        "data"
+      ],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/Payment"
+        },
+        "links": {
+          "$ref": "#/definitions/Links"
+        }
+      }
     }
   }
 }`))
 	FlatSwaggerJSON = json.RawMessage([]byte(`{
+  "consumes": [
+    "application/vnd.api+json"
+  ],
   "produces": [
     "application/vnd.api+json"
   ],
@@ -511,9 +578,6 @@ func init() {
   "paths": {
     "/payments": {
       "post": {
-        "consumes": [
-          "application/vnd.api+json"
-        ],
         "tags": [
           "Payments"
         ],
@@ -566,6 +630,45 @@ func init() {
             "description": "Payment details",
             "schema": {
               "$ref": "#/definitions/PaymentDetailsResponse"
+            }
+          },
+          "404": {
+            "description": "Payment Not Found",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Update payment details",
+        "operationId": "updatePayment",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of payment to update",
+            "name": "id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "New payment details",
+            "name": "Payment update request",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/PaymentUpdateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment details",
+            "schema": {
+              "$ref": "#/definitions/PaymentUpdateResponse"
             }
           },
           "404": {
@@ -965,6 +1068,31 @@ func init() {
           "description": "Beneficiary/debtor name",
           "type": "string",
           "example": "Norman Smith"
+        }
+      }
+    },
+    "PaymentUpdateRequest": {
+      "type": "object",
+      "required": [
+        "data"
+      ],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/Payment"
+        }
+      }
+    },
+    "PaymentUpdateResponse": {
+      "type": "object",
+      "required": [
+        "data"
+      ],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/Payment"
+        },
+        "links": {
+          "$ref": "#/definitions/Links"
         }
       }
     }

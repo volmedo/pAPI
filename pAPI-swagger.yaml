@@ -1,4 +1,5 @@
 basePath: /v1
+consumes: [application/vnd.api+json]
 definitions:
   AccountNumber:
     description: Account number
@@ -273,6 +274,22 @@ definitions:
         example: Norman Smith
         type: string
     type: object
+  PaymentUpdateRequest:
+    properties:
+      data:
+        $ref: "#/definitions/Payment"
+    required:
+      - data
+    type: object
+  PaymentUpdateResponse:
+    properties:
+      data:
+        $ref: "#/definitions/Payment"
+      links:
+        $ref: "#/definitions/Links"
+    required:
+      - data
+    type: object
 host: api.example.com
 info:
   description: Payments API as specified in Form3 take home test
@@ -281,7 +298,6 @@ info:
 paths:
   /payments:
     post:
-      consumes: [application/vnd.api+json]
       operationId: createPayment
       parameters:
         - in: body
@@ -337,6 +353,31 @@ paths:
           schema:
             $ref: "#/definitions/ApiError"
       summary: Fetch payment
+      tags: [Payments]
+    put:
+      operationId: updatePayment
+      parameters:
+        - description: ID of payment to update
+          format: uuid
+          in: path
+          name: id
+          required: true
+          type: string
+        - description: New payment details
+          in: body
+          name: Payment update request
+          schema:
+            $ref: "#/definitions/PaymentUpdateRequest"
+      responses:
+        200:
+          description: Payment details
+          schema:
+            $ref: "#/definitions/PaymentUpdateResponse"
+        404:
+          description: Payment Not Found
+          schema:
+            $ref: "#/definitions/ApiError"
+      summary: Update payment details
       tags: [Payments]
 produces: [application/vnd.api+json]
 schemes: [http]

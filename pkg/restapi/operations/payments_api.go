@@ -48,6 +48,9 @@ func NewPaymentsAPI(spec *loads.Document) *PaymentsAPI {
 		PaymentsGetPaymentHandler: payments.GetPaymentHandlerFunc(func(params payments.GetPaymentParams) middleware.Responder {
 			return middleware.NotImplemented("operation PaymentsGetPayment has not yet been implemented")
 		}),
+		PaymentsUpdatePaymentHandler: payments.UpdatePaymentHandlerFunc(func(params payments.UpdatePaymentParams) middleware.Responder {
+			return middleware.NotImplemented("operation PaymentsUpdatePayment has not yet been implemented")
+		}),
 	}
 }
 
@@ -85,6 +88,8 @@ type PaymentsAPI struct {
 	PaymentsDeletePaymentHandler payments.DeletePaymentHandler
 	// PaymentsGetPaymentHandler sets the operation handler for the get payment operation
 	PaymentsGetPaymentHandler payments.GetPaymentHandler
+	// PaymentsUpdatePaymentHandler sets the operation handler for the update payment operation
+	PaymentsUpdatePaymentHandler payments.UpdatePaymentHandler
 
 	// ServeError is called when an error is received, there is a default handler
 	// but you can set your own with this
@@ -158,6 +163,10 @@ func (o *PaymentsAPI) Validate() error {
 
 	if o.PaymentsGetPaymentHandler == nil {
 		unregistered = append(unregistered, "payments.GetPaymentHandler")
+	}
+
+	if o.PaymentsUpdatePaymentHandler == nil {
+		unregistered = append(unregistered, "payments.UpdatePaymentHandler")
 	}
 
 	if len(unregistered) > 0 {
@@ -272,6 +281,11 @@ func (o *PaymentsAPI) initHandlerCache() {
 		o.handlers["GET"] = make(map[string]http.Handler)
 	}
 	o.handlers["GET"]["/payments/{id}"] = payments.NewGetPayment(o.context, o.PaymentsGetPaymentHandler)
+
+	if o.handlers["PUT"] == nil {
+		o.handlers["PUT"] = make(map[string]http.Handler)
+	}
+	o.handlers["PUT"]["/payments/{id}"] = payments.NewUpdatePayment(o.context, o.PaymentsUpdatePaymentHandler)
 
 }
 

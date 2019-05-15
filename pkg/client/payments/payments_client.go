@@ -23,6 +23,8 @@ type API interface {
 	DeletePayment(ctx context.Context, params *DeletePaymentParams) (*DeletePaymentNoContent, error)
 	// GetPayment fetches payment
 	GetPayment(ctx context.Context, params *GetPaymentParams) (*GetPaymentOK, error)
+	// UpdatePayment updates payment details
+	UpdatePayment(ctx context.Context, params *UpdatePaymentParams) (*UpdatePaymentOK, error)
 }
 
 // New creates a new payments API client.
@@ -77,7 +79,7 @@ func (a *Client) DeletePayment(ctx context.Context, params *DeletePaymentParams)
 		Method:             "DELETE",
 		PathPattern:        "/payments/{id}",
 		ProducesMediaTypes: []string{"application/vnd.api+json"},
-		ConsumesMediaTypes: []string{""},
+		ConsumesMediaTypes: []string{"application/vnd.api+json"},
 		Schemes:            []string{"http"},
 		Params:             params,
 		Reader:             &DeletePaymentReader{formats: a.formats},
@@ -101,7 +103,7 @@ func (a *Client) GetPayment(ctx context.Context, params *GetPaymentParams) (*Get
 		Method:             "GET",
 		PathPattern:        "/payments/{id}",
 		ProducesMediaTypes: []string{"application/vnd.api+json"},
-		ConsumesMediaTypes: []string{""},
+		ConsumesMediaTypes: []string{"application/vnd.api+json"},
 		Schemes:            []string{"http"},
 		Params:             params,
 		Reader:             &GetPaymentReader{formats: a.formats},
@@ -112,5 +114,29 @@ func (a *Client) GetPayment(ctx context.Context, params *GetPaymentParams) (*Get
 		return nil, err
 	}
 	return result.(*GetPaymentOK), nil
+
+}
+
+/*
+UpdatePayment updates payment details
+*/
+func (a *Client) UpdatePayment(ctx context.Context, params *UpdatePaymentParams) (*UpdatePaymentOK, error) {
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
+		ID:                 "updatePayment",
+		Method:             "PUT",
+		PathPattern:        "/payments/{id}",
+		ProducesMediaTypes: []string{"application/vnd.api+json"},
+		ConsumesMediaTypes: []string{"application/vnd.api+json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &UpdatePaymentReader{formats: a.formats},
+		Context:            ctx,
+		Client:             params.HTTPClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*UpdatePaymentOK), nil
 
 }

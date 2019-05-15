@@ -65,6 +65,23 @@ func (papi *PaymentsAPI) GetPayment(ctx context.Context, params payments.GetPaym
 	return payments.NewGetPaymentOK().WithPayload(resp)
 }
 
+// UpdatePayment Adds a new payment with the data included in params
+func (papi *PaymentsAPI) UpdatePayment(ctx context.Context, params payments.UpdatePaymentParams) middleware.Responder {
+	paymentID := params.ID.DeepCopy()
+	payment := *params.PaymentUpdateRequest.Data
+	_, ok := papi.Repo[*paymentID]
+	if !ok {
+		apiError := newAPIError(fmt.Sprintf("Payment with ID %s not found", paymentID))
+		return payments.NewUpdatePaymentNotFound().WithPayload(apiError)
+	}
+
+	papi.Repo[*paymentID] = &payment
+
+	respData := payment
+	resp := &models.PaymentUpdateResponse{Data: &respData}
+	return payments.NewUpdatePaymentOK().WithPayload(resp)
+}
+
 func newAPIError(msg string) *models.APIError {
 	errorCode, _ := uuid.NewV4()
 	return &models.APIError{

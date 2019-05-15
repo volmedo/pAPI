@@ -82,6 +82,23 @@ func (c *Client) iRequestThePaymentWithID(paymentID string) error {
 	return nil
 }
 
+func (c *Client) iUpdateThePaymentWithIDWithNewDetailsInJSON(paymentID string, jsonPayment *gherkin.DocString) error {
+	var payment models.Payment
+	decoder := json.NewDecoder(bytes.NewBuffer([]byte(jsonPayment.Content)))
+	err := decoder.Decode(&payment)
+	if err != nil {
+		return fmt.Errorf("Invalid JSON string in test specification: %s", err)
+	}
+
+	ctx := context.Background()
+	pID := strfmt.UUID(paymentID)
+	req := &models.PaymentUpdateRequest{Data: &payment}
+	params := payments.NewUpdatePaymentParams().WithID(pID).WithPaymentUpdateRequest(req)
+
+	c.lastResponse, c.lastError = c.UpdatePayment(ctx, params)
+	return nil
+}
+
 func (c *Client) iGetAResponse(expectedStatus string) error {
 	// An error will be raised in case of error but also if the StatusCode in the response
 	// doesn't match the expected status, the generated code already takes care of this
@@ -107,6 +124,14 @@ func (c *Client) theResponseContainsAPaymentDescribedInJSONAs(jsonPayment *gherk
 			return errors.New("Empty response")
 		}
 		gotPayment = *respData
+	case *payments.UpdatePaymentOK:
+		respData := resp.Payload.Data
+		if respData == nil {
+			return errors.New("Empty response")
+		}
+		gotPayment = *respData
+	default:
+		return fmt.Errorf("Unknown response type %T", resp)
 	}
 
 	var expectedPayment models.Payment
@@ -154,7 +179,7 @@ func FeatureContext(s *godog.Suite) {
 	s.Step(`^there is a payment described in JSON as:$`, client.iCreateANewPaymentDescribedInJSONAs)
 	s.Step(`^I delete the payment with ID "([^"]*)"$`, client.iDeleteThePaymentWithID)
 	s.Step(`^I request the payment with ID "([^"]*)"$`, client.iRequestThePaymentWithID)
-	s.Step(`^I get a "([^"]*)" response$`, client.iGetAResponse)
-	s.Step(`^I get an "([^"]*)" response$`, client.iGetAResponse)
+	s.Step(`^I update the payment with ID "([^"]*)" with new details in JSON:$`, client.iUpdateThePaymentWithIDWithNewDetailsInJSON)
+	s.Step(`^I get a[n]? "([^"]*)" response$`, client.iGetAResponse)
 	s.Step(`^the response contains a payment described in JSON as:$`, client.theResponseContainsAPaymentDescribedInJSONAs)
 }

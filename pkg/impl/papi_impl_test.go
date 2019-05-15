@@ -233,6 +233,64 @@ func TestDeleteNonExistentPayment(t *testing.T) {
 	}
 }
 
+func TestUpdatePayment(t *testing.T) {
+	payment, _ := copyPayment(&testPayment)
+	testRepo := impl.PaymentRepository{
+		*payment.ID: payment,
+	}
+	api := impl.PaymentsAPI{Repo: testRepo}
+
+	updatedPayment, _ := copyPayment(payment)
+	updatedPayment.Attributes.Amount = models.Amount("150.00")
+	updatedPayment.Attributes.Fx.OriginalAmount = models.Amount("300.00")
+	updatedPayment.Attributes.PaymentID = "123456789012345679"
+	params := payments.UpdatePaymentParams{
+		ID:                   *updatedPayment.ID,
+		PaymentUpdateRequest: &models.PaymentUpdateRequest{Data: updatedPayment},
+	}
+	rr, err := doRequest(api, params)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Wrong status code: got %v, expected %v", rr.Code, http.StatusOK)
+	}
+
+	var respBody models.PaymentUpdateResponse
+	decoder := json.NewDecoder(rr.Body)
+	err = decoder.Decode(&respBody)
+	if err != nil {
+		t.Errorf("Malformed JSON in response: %v", err)
+	}
+
+	if !reflect.DeepEqual(*updatedPayment, *respBody.Data) {
+		t.Fatal("Payment data in request and response don't match")
+	}
+}
+
+func TestUpdateNonExistentPayment(t *testing.T) {
+	testRepo := impl.PaymentRepository{}
+	api := impl.PaymentsAPI{Repo: testRepo}
+
+	updatedPayment, _ := copyPayment(&testPayment)
+	updatedPayment.Attributes.Amount = models.Amount("150.00")
+	updatedPayment.Attributes.Fx.OriginalAmount = models.Amount("300.00")
+	updatedPayment.Attributes.PaymentID = "123456789012345679"
+	params := payments.UpdatePaymentParams{
+		ID:                   *updatedPayment.ID,
+		PaymentUpdateRequest: &models.PaymentUpdateRequest{Data: updatedPayment},
+	}
+	rr, err := doRequest(api, params)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("Wrong status code: got %v, expected %v", rr.Code, http.StatusNotFound)
+	}
+}
+
 func copyPayment(payment *models.Payment) (*models.Payment, error) {
 	dup, err := copystructure.Copy(*payment)
 	if err != nil {
@@ -257,6 +315,8 @@ func doRequest(api impl.PaymentsAPI, params interface{}) (*httptest.ResponseReco
 		responder = api.GetPayment(ctx, p)
 	case payments.DeletePaymentParams:
 		responder = api.DeletePayment(ctx, p)
+	case payments.UpdatePaymentParams:
+		responder = api.UpdatePayment(ctx, p)
 	default:
 		return nil, fmt.Errorf("Unknown params type: %T", p)
 	}

@@ -28,6 +28,7 @@ type PaymentsAPI interface {
 	CreatePayment(ctx context.Context, params payments.CreatePaymentParams) middleware.Responder
 	DeletePayment(ctx context.Context, params payments.DeletePaymentParams) middleware.Responder
 	GetPayment(ctx context.Context, params payments.GetPaymentParams) middleware.Responder
+	UpdatePayment(ctx context.Context, params payments.UpdatePaymentParams) middleware.Responder
 }
 
 // Config is configuration for Handler
@@ -75,6 +76,10 @@ func HandlerAPI(c Config) (http.Handler, *operations.PaymentsAPI, error) {
 	api.PaymentsGetPaymentHandler = payments.GetPaymentHandlerFunc(func(params payments.GetPaymentParams) middleware.Responder {
 		ctx := params.HTTPRequest.Context()
 		return c.PaymentsAPI.GetPayment(ctx, params)
+	})
+	api.PaymentsUpdatePaymentHandler = payments.UpdatePaymentHandlerFunc(func(params payments.UpdatePaymentParams) middleware.Responder {
+		ctx := params.HTTPRequest.Context()
+		return c.PaymentsAPI.UpdatePayment(ctx, params)
 	})
 	api.ServerShutdown = func() {}
 	return api.Serve(c.InnerMiddleware), api, nil
