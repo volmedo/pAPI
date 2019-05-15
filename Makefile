@@ -42,9 +42,6 @@ lint:
 test.unit:
 	$(GO) test -v -race ./$(PKG)/impl
 
-test.component:
-	$(GO) test -v -race ./$(CMD)/server
-
 build: ./$(CMD)/server/main.go
 	GOOS=$(TARGET_OS) GOARCH=$(TARGET_ARCH) $(GO) build -o $(SRV_BIN_NAME) ./$(CMD)/server/main.go
 
@@ -95,7 +92,7 @@ clean:
 	rm -f $(TF_SSH_KEY_PATH).pub
 
 .PHONY: $(patsubst %,swagger.%,validate clean generate.client generate)
-.PHONY: lint test.unit test.component test.e2e
+.PHONY: lint test.unit test.e2e
 .PHONY: $(patsubst %,terraform.%,keygen init chkfmt validate apply output destroy)
 .PHONY: clean
 
