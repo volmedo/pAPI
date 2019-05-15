@@ -199,6 +199,40 @@ func TestGetNonExistentPayment(t *testing.T) {
 	}
 }
 
+func TestDeletePayment(t *testing.T) {
+	testRepo := impl.PaymentRepository{
+		*testPayment.ID: &testPayment,
+	}
+	api := impl.PaymentsAPI{Repo: testRepo}
+
+	pID := testPayment.ID.DeepCopy()
+	params := payments.DeletePaymentParams{ID: *pID}
+	rr, err := doRequest(api, params)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if rr.Code != http.StatusNoContent {
+		t.Errorf("Wrong status code: got %v, expected %v", rr.Code, http.StatusNoContent)
+	}
+}
+
+func TestDeleteNonExistentPayment(t *testing.T) {
+	testRepo := impl.PaymentRepository{}
+	api := impl.PaymentsAPI{Repo: testRepo}
+
+	pID := testPayment.ID.DeepCopy()
+	params := payments.DeletePaymentParams{ID: *pID}
+	rr, err := doRequest(api, params)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("Wrong status code: got %v, expected %v", rr.Code, http.StatusNotFound)
+	}
+}
+
 func copyPayment(payment *models.Payment) (*models.Payment, error) {
 	dup, err := copystructure.Copy(*payment)
 	if err != nil {
@@ -221,6 +255,8 @@ func doRequest(api impl.PaymentsAPI, params interface{}) (*httptest.ResponseReco
 		responder = api.CreatePayment(ctx, p)
 	case payments.GetPaymentParams:
 		responder = api.GetPayment(ctx, p)
+	case payments.DeletePaymentParams:
+		responder = api.DeletePayment(ctx, p)
 	default:
 		return nil, fmt.Errorf("Unknown params type: %T", p)
 	}

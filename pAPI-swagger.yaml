@@ -300,6 +300,24 @@ paths:
       summary: Create payment
       tags: [Payments]
   /payments/{id}:
+    delete:
+      operationId: deletePayment
+      parameters:
+        - description: ID of payment to delete
+          format: uuid
+          in: path
+          name: id
+          required: true
+          type: string
+      responses:
+        204:
+          description: Payment deleted OK. No body content will be returned
+        404:
+          description: Payment Not Found
+          schema:
+            $ref: "#/definitions/ApiError"
+      summary: Deletes a payment resource
+      tags: [Payments]
     get:
       operationId: getPayment
       parameters:

@@ -19,6 +19,8 @@ import (
 type API interface {
 	// CreatePayment creates payment
 	CreatePayment(ctx context.Context, params *CreatePaymentParams) (*CreatePaymentCreated, error)
+	// DeletePayment deletes a payment resource
+	DeletePayment(ctx context.Context, params *DeletePaymentParams) (*DeletePaymentNoContent, error)
 	// GetPayment fetches payment
 	GetPayment(ctx context.Context, params *GetPaymentParams) (*GetPaymentOK, error)
 }
@@ -62,6 +64,30 @@ func (a *Client) CreatePayment(ctx context.Context, params *CreatePaymentParams)
 		return nil, err
 	}
 	return result.(*CreatePaymentCreated), nil
+
+}
+
+/*
+DeletePayment deletes a payment resource
+*/
+func (a *Client) DeletePayment(ctx context.Context, params *DeletePaymentParams) (*DeletePaymentNoContent, error) {
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
+		ID:                 "deletePayment",
+		Method:             "DELETE",
+		PathPattern:        "/payments/{id}",
+		ProducesMediaTypes: []string{"application/vnd.api+json"},
+		ConsumesMediaTypes: []string{""},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &DeletePaymentReader{formats: a.formats},
+		Context:            ctx,
+		Client:             params.HTTPClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*DeletePaymentNoContent), nil
 
 }
 

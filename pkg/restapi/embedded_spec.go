@@ -99,6 +99,34 @@ func init() {
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Deletes a payment resource",
+        "operationId": "deletePayment",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of payment to delete",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Payment deleted OK. No body content will be returned"
+          },
+          "404": {
+            "description": "Payment Not Found",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          }
+        }
       }
     }
   },
@@ -539,6 +567,34 @@ func init() {
             "schema": {
               "$ref": "#/definitions/PaymentDetailsResponse"
             }
+          },
+          "404": {
+            "description": "Payment Not Found",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Deletes a payment resource",
+        "operationId": "deletePayment",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of payment to delete",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Payment deleted OK. No body content will be returned"
           },
           "404": {
             "description": "Payment Not Found",

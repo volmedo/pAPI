@@ -25,7 +25,8 @@ type PaymentsAPI struct {
 func (papi *PaymentsAPI) CreatePayment(ctx context.Context, params payments.CreatePaymentParams) middleware.Responder {
 	payment := *params.PaymentCreationRequest.Data
 	paymentID := payment.ID.DeepCopy()
-	if _, ok := papi.Repo[*paymentID]; ok {
+	_, ok := papi.Repo[*paymentID]
+	if ok {
 		apiError := newAPIError(fmt.Sprintf("Payment ID %s already exists", paymentID))
 		return payments.NewCreatePaymentConflict().WithPayload(apiError)
 	}
@@ -37,17 +38,31 @@ func (papi *PaymentsAPI) CreatePayment(ctx context.Context, params payments.Crea
 	return payments.NewCreatePaymentCreated().WithPayload(resp)
 }
 
+// DeletePayment Deletes a payment identified by its ID
+func (papi *PaymentsAPI) DeletePayment(ctx context.Context, params payments.DeletePaymentParams) middleware.Responder {
+	paymentID := params.ID
+	_, ok := papi.Repo[paymentID]
+	if !ok {
+		apiError := newAPIError(fmt.Sprintf("Payment with ID %s not found", paymentID))
+		return payments.NewDeletePaymentNotFound().WithPayload(apiError)
+	}
+
+	delete(papi.Repo, paymentID)
+	return payments.NewDeletePaymentNoContent()
+}
+
 // GetPayment Returns details of a payment identified by its ID
 func (papi *PaymentsAPI) GetPayment(ctx context.Context, params payments.GetPaymentParams) middleware.Responder {
 	paymentID := params.ID.DeepCopy()
-	if payment, ok := papi.Repo[*paymentID]; ok {
-		respData := *payment
-		resp := &models.PaymentDetailsResponse{Data: &respData}
-		return payments.NewGetPaymentOK().WithPayload(resp)
+	payment, ok := papi.Repo[*paymentID]
+	if !ok {
+		apiError := newAPIError(fmt.Sprintf("Payment with ID %s not found", paymentID))
+		return payments.NewGetPaymentNotFound().WithPayload(apiError)
 	}
 
-	apiError := newAPIError(fmt.Sprintf("Payment with ID %s not found", paymentID))
-	return payments.NewGetPaymentNotFound().WithPayload(apiError)
+	respData := *payment
+	resp := &models.PaymentDetailsResponse{Data: &respData}
+	return payments.NewGetPaymentOK().WithPayload(resp)
 }
 
 func newAPIError(msg string) *models.APIError {

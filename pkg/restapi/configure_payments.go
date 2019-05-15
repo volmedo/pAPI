@@ -26,6 +26,7 @@ const AuthKey contextKey = "Auth"
 // PaymentsAPI
 type PaymentsAPI interface {
 	CreatePayment(ctx context.Context, params payments.CreatePaymentParams) middleware.Responder
+	DeletePayment(ctx context.Context, params payments.DeletePaymentParams) middleware.Responder
 	GetPayment(ctx context.Context, params payments.GetPaymentParams) middleware.Responder
 }
 
@@ -66,6 +67,10 @@ func HandlerAPI(c Config) (http.Handler, *operations.PaymentsAPI, error) {
 	api.PaymentsCreatePaymentHandler = payments.CreatePaymentHandlerFunc(func(params payments.CreatePaymentParams) middleware.Responder {
 		ctx := params.HTTPRequest.Context()
 		return c.PaymentsAPI.CreatePayment(ctx, params)
+	})
+	api.PaymentsDeletePaymentHandler = payments.DeletePaymentHandlerFunc(func(params payments.DeletePaymentParams) middleware.Responder {
+		ctx := params.HTTPRequest.Context()
+		return c.PaymentsAPI.DeletePayment(ctx, params)
 	})
 	api.PaymentsGetPaymentHandler = payments.GetPaymentHandlerFunc(func(params payments.GetPaymentParams) middleware.Responder {
 		ctx := params.HTTPRequest.Context()

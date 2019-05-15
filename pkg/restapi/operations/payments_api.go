@@ -42,6 +42,9 @@ func NewPaymentsAPI(spec *loads.Document) *PaymentsAPI {
 		PaymentsCreatePaymentHandler: payments.CreatePaymentHandlerFunc(func(params payments.CreatePaymentParams) middleware.Responder {
 			return middleware.NotImplemented("operation PaymentsCreatePayment has not yet been implemented")
 		}),
+		PaymentsDeletePaymentHandler: payments.DeletePaymentHandlerFunc(func(params payments.DeletePaymentParams) middleware.Responder {
+			return middleware.NotImplemented("operation PaymentsDeletePayment has not yet been implemented")
+		}),
 		PaymentsGetPaymentHandler: payments.GetPaymentHandlerFunc(func(params payments.GetPaymentParams) middleware.Responder {
 			return middleware.NotImplemented("operation PaymentsGetPayment has not yet been implemented")
 		}),
@@ -78,6 +81,8 @@ type PaymentsAPI struct {
 
 	// PaymentsCreatePaymentHandler sets the operation handler for the create payment operation
 	PaymentsCreatePaymentHandler payments.CreatePaymentHandler
+	// PaymentsDeletePaymentHandler sets the operation handler for the delete payment operation
+	PaymentsDeletePaymentHandler payments.DeletePaymentHandler
 	// PaymentsGetPaymentHandler sets the operation handler for the get payment operation
 	PaymentsGetPaymentHandler payments.GetPaymentHandler
 
@@ -145,6 +150,10 @@ func (o *PaymentsAPI) Validate() error {
 
 	if o.PaymentsCreatePaymentHandler == nil {
 		unregistered = append(unregistered, "payments.CreatePaymentHandler")
+	}
+
+	if o.PaymentsDeletePaymentHandler == nil {
+		unregistered = append(unregistered, "payments.DeletePaymentHandler")
 	}
 
 	if o.PaymentsGetPaymentHandler == nil {
@@ -253,6 +262,11 @@ func (o *PaymentsAPI) initHandlerCache() {
 		o.handlers["POST"] = make(map[string]http.Handler)
 	}
 	o.handlers["POST"]["/payments"] = payments.NewCreatePayment(o.context, o.PaymentsCreatePaymentHandler)
+
+	if o.handlers["DELETE"] == nil {
+		o.handlers["DELETE"] = make(map[string]http.Handler)
+	}
+	o.handlers["DELETE"]["/payments/{id}"] = payments.NewDeletePayment(o.context, o.PaymentsDeletePaymentHandler)
 
 	if o.handlers["GET"] == nil {
 		o.handlers["GET"] = make(map[string]http.Handler)

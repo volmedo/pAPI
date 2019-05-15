@@ -66,6 +66,14 @@ func (c *Client) iCreateANewPaymentDescribedInJSONAs(jsonPayment *gherkin.DocStr
 	return nil
 }
 
+func (c *Client) iDeleteThePaymentWithID(paymentID string) error {
+	ctx := context.Background()
+	params := payments.NewDeletePaymentParams().WithID(strfmt.UUID(paymentID))
+
+	c.lastResponse, c.lastError = c.DeletePayment(ctx, params)
+	return nil
+}
+
 func (c *Client) iRequestThePaymentWithID(paymentID string) error {
 	ctx := context.Background()
 	params := payments.NewGetPaymentParams().WithID(strfmt.UUID(paymentID))
@@ -144,6 +152,7 @@ func FeatureContext(s *godog.Suite) {
 
 	s.Step(`^I create a new payment described in JSON as:$`, client.iCreateANewPaymentDescribedInJSONAs)
 	s.Step(`^there is a payment described in JSON as:$`, client.iCreateANewPaymentDescribedInJSONAs)
+	s.Step(`^I delete the payment with ID "([^"]*)"$`, client.iDeleteThePaymentWithID)
 	s.Step(`^I request the payment with ID "([^"]*)"$`, client.iRequestThePaymentWithID)
 	s.Step(`^I get a "([^"]*)" response$`, client.iGetAResponse)
 	s.Step(`^I get an "([^"]*)" response$`, client.iGetAResponse)
