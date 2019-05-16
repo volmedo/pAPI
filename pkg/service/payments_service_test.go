@@ -1,4 +1,4 @@
-package impl_test
+package service_test
 
 import (
 	"context"
@@ -16,9 +16,9 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/mitchellh/copystructure"
 
-	"github.com/volmedo/pAPI/pkg/impl"
 	"github.com/volmedo/pAPI/pkg/models"
 	"github.com/volmedo/pAPI/pkg/restapi/operations/payments"
+	"github.com/volmedo/pAPI/pkg/service"
 )
 
 var testPayment models.Payment
@@ -105,14 +105,14 @@ func init() {
 }
 
 func TestCreatePayment(t *testing.T) {
-	testRepo := impl.NewPaymentRepository()
-	api := impl.PaymentsAPI{Repo: *testRepo}
+	testRepo := service.NewPaymentRepository()
+	ps := service.PaymentsService{Repo: testRepo}
 
 	params := payments.CreatePaymentParams{
 		PaymentCreationRequest: &models.PaymentCreationRequest{Data: &testPayment},
 	}
 
-	rr, err := doRequest(api, params)
+	rr, err := doRequest(ps, params)
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -135,14 +135,17 @@ func TestCreatePayment(t *testing.T) {
 
 func TestCreateConflictingPayment(t *testing.T) {
 	payment, _ := copyPayment(&testPayment)
-	testRepo := impl.NewPaymentRepository()
-	testRepo.Add(payment)
-	api := impl.PaymentsAPI{Repo: *testRepo}
+	testRepo := service.NewPaymentRepository()
+	err := testRepo.Add(payment)
+	if err != nil {
+		t.Fatal("Error populating test repository")
+	}
+	ps := service.PaymentsService{Repo: testRepo}
 
 	params := payments.CreatePaymentParams{
 		PaymentCreationRequest: &models.PaymentCreationRequest{Data: &testPayment},
 	}
-	rr, err := doRequest(api, params)
+	rr, err := doRequest(ps, params)
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -154,13 +157,16 @@ func TestCreateConflictingPayment(t *testing.T) {
 
 func TestGetPayment(t *testing.T) {
 	payment, _ := copyPayment(&testPayment)
-	testRepo := impl.NewPaymentRepository()
-	testRepo.Add(payment)
-	api := impl.PaymentsAPI{Repo: *testRepo}
+	testRepo := service.NewPaymentRepository()
+	err := testRepo.Add(payment)
+	if err != nil {
+		t.Fatal("Error populating test repository")
+	}
+	ps := service.PaymentsService{Repo: testRepo}
 
 	pID := testPayment.ID.DeepCopy()
 	params := payments.GetPaymentParams{ID: *pID}
-	rr, err := doRequest(api, params)
+	rr, err := doRequest(ps, params)
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -182,12 +188,12 @@ func TestGetPayment(t *testing.T) {
 }
 
 func TestGetNonExistentPayment(t *testing.T) {
-	testRepo := impl.NewPaymentRepository()
-	api := impl.PaymentsAPI{Repo: *testRepo}
+	testRepo := service.NewPaymentRepository()
+	ps := service.PaymentsService{Repo: testRepo}
 
 	pID := testPayment.ID.DeepCopy()
 	params := payments.GetPaymentParams{ID: *pID}
-	rr, err := doRequest(api, params)
+	rr, err := doRequest(ps, params)
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -198,13 +204,16 @@ func TestGetNonExistentPayment(t *testing.T) {
 }
 
 func TestDeletePayment(t *testing.T) {
-	testRepo := impl.NewPaymentRepository()
-	testRepo.Add(&testPayment)
-	api := impl.PaymentsAPI{Repo: *testRepo}
+	testRepo := service.NewPaymentRepository()
+	err := testRepo.Add(&testPayment)
+	if err != nil {
+		t.Fatal("Error populating test repository")
+	}
+	ps := service.PaymentsService{Repo: testRepo}
 
 	pID := testPayment.ID.DeepCopy()
 	params := payments.DeletePaymentParams{ID: *pID}
-	rr, err := doRequest(api, params)
+	rr, err := doRequest(ps, params)
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -215,12 +224,12 @@ func TestDeletePayment(t *testing.T) {
 }
 
 func TestDeleteNonExistentPayment(t *testing.T) {
-	testRepo := impl.NewPaymentRepository()
-	api := impl.PaymentsAPI{Repo: *testRepo}
+	testRepo := service.NewPaymentRepository()
+	ps := service.PaymentsService{Repo: testRepo}
 
 	pID := testPayment.ID.DeepCopy()
 	params := payments.DeletePaymentParams{ID: *pID}
-	rr, err := doRequest(api, params)
+	rr, err := doRequest(ps, params)
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -232,9 +241,12 @@ func TestDeleteNonExistentPayment(t *testing.T) {
 
 func TestUpdatePayment(t *testing.T) {
 	payment, _ := copyPayment(&testPayment)
-	testRepo := impl.NewPaymentRepository()
-	testRepo.Add(payment)
-	api := impl.PaymentsAPI{Repo: *testRepo}
+	testRepo := service.NewPaymentRepository()
+	err := testRepo.Add(payment)
+	if err != nil {
+		t.Fatal("Error populating test repository")
+	}
+	ps := service.PaymentsService{Repo: testRepo}
 
 	updatedPayment, _ := copyPayment(payment)
 	updatedPayment.Attributes.Amount = models.Amount("150.00")
@@ -244,7 +256,7 @@ func TestUpdatePayment(t *testing.T) {
 		ID:                   *updatedPayment.ID,
 		PaymentUpdateRequest: &models.PaymentUpdateRequest{Data: updatedPayment},
 	}
-	rr, err := doRequest(api, params)
+	rr, err := doRequest(ps, params)
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -266,8 +278,8 @@ func TestUpdatePayment(t *testing.T) {
 }
 
 func TestUpdateNonExistentPayment(t *testing.T) {
-	testRepo := impl.NewPaymentRepository()
-	api := impl.PaymentsAPI{Repo: *testRepo}
+	testRepo := service.NewPaymentRepository()
+	ps := service.PaymentsService{Repo: testRepo}
 
 	updatedPayment, _ := copyPayment(&testPayment)
 	updatedPayment.Attributes.Amount = models.Amount("150.00")
@@ -277,7 +289,7 @@ func TestUpdateNonExistentPayment(t *testing.T) {
 		ID:                   *updatedPayment.ID,
 		PaymentUpdateRequest: &models.PaymentUpdateRequest{Data: updatedPayment},
 	}
-	rr, err := doRequest(api, params)
+	rr, err := doRequest(ps, params)
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -300,19 +312,19 @@ func copyPayment(payment *models.Payment) (*models.Payment, error) {
 	return &paymentDup, nil
 }
 
-func doRequest(api impl.PaymentsAPI, params interface{}) (*httptest.ResponseRecorder, error) {
+func doRequest(ps service.PaymentsService, params interface{}) (*httptest.ResponseRecorder, error) {
 	ctx := context.Background()
 
 	var responder middleware.Responder
 	switch p := params.(type) {
 	case payments.CreatePaymentParams:
-		responder = api.CreatePayment(ctx, p)
+		responder = ps.CreatePayment(ctx, p)
 	case payments.GetPaymentParams:
-		responder = api.GetPayment(ctx, p)
+		responder = ps.GetPayment(ctx, p)
 	case payments.DeletePaymentParams:
-		responder = api.DeletePayment(ctx, p)
+		responder = ps.DeletePayment(ctx, p)
 	case payments.UpdatePaymentParams:
-		responder = api.UpdatePayment(ctx, p)
+		responder = ps.UpdatePayment(ctx, p)
 	default:
 		return nil, fmt.Errorf("Unknown params type: %T", p)
 	}

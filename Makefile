@@ -40,7 +40,7 @@ lint:
 	$(GOLANGCI_LINT) golangci-lint run --no-config --skip-dirs "$(PKG)/(client|models|restapi)" --disable unused
 
 test.unit:
-	$(GO) test -v -race ./$(PKG)/impl
+	$(GO) test -v -race ./$(PKG)/service
 
 build: ./$(CMD)/server/main.go
 	GOOS=$(TARGET_OS) GOARCH=$(TARGET_ARCH) $(GO) build -o $(SRV_BIN_NAME) ./$(CMD)/server/main.go

@@ -1,4 +1,4 @@
-package impl
+package service
 
 import (
 	"context"
@@ -94,14 +94,14 @@ func (pr *PaymentRepository) Update(paymentID strfmt.UUID, payment *models.Payme
 	return nil
 }
 
-// PaymentsAPI implements the business logic needed to fulfill the API's requirements
-type PaymentsAPI struct {
+// PaymentsService implements the business logic needed to fulfill the API's requirements
+type PaymentsService struct {
 	// Repo is a repository for payments
-	Repo PaymentRepository
+	Repo *PaymentRepository
 }
 
 // CreatePayment Adds a new payment with the data included in params
-func (papi *PaymentsAPI) CreatePayment(ctx context.Context, params payments.CreatePaymentParams) middleware.Responder {
+func (papi *PaymentsService) CreatePayment(ctx context.Context, params payments.CreatePaymentParams) middleware.Responder {
 	payment := params.PaymentCreationRequest.Data
 	err := papi.Repo.Add(payment)
 	if err != nil {
@@ -115,7 +115,7 @@ func (papi *PaymentsAPI) CreatePayment(ctx context.Context, params payments.Crea
 }
 
 // DeletePayment Deletes a payment identified by its ID
-func (papi *PaymentsAPI) DeletePayment(ctx context.Context, params payments.DeletePaymentParams) middleware.Responder {
+func (papi *PaymentsService) DeletePayment(ctx context.Context, params payments.DeletePaymentParams) middleware.Responder {
 	paymentID := params.ID
 	err := papi.Repo.Delete(paymentID)
 	if err != nil {
@@ -127,7 +127,7 @@ func (papi *PaymentsAPI) DeletePayment(ctx context.Context, params payments.Dele
 }
 
 // GetPayment Returns details of a payment identified by its ID
-func (papi *PaymentsAPI) GetPayment(ctx context.Context, params payments.GetPaymentParams) middleware.Responder {
+func (papi *PaymentsService) GetPayment(ctx context.Context, params payments.GetPaymentParams) middleware.Responder {
 	paymentID := params.ID.DeepCopy()
 	payment, err := papi.Repo.Get(*paymentID)
 	if err != nil {
@@ -140,7 +140,7 @@ func (papi *PaymentsAPI) GetPayment(ctx context.Context, params payments.GetPaym
 }
 
 // UpdatePayment Adds a new payment with the data included in params
-func (papi *PaymentsAPI) UpdatePayment(ctx context.Context, params payments.UpdatePaymentParams) middleware.Responder {
+func (papi *PaymentsService) UpdatePayment(ctx context.Context, params payments.UpdatePaymentParams) middleware.Responder {
 	paymentID := params.ID.DeepCopy()
 	payment := params.PaymentUpdateRequest.Data
 	err := papi.Repo.Update(*paymentID, payment)
