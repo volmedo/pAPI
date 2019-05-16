@@ -105,8 +105,8 @@ func init() {
 }
 
 func TestCreatePayment(t *testing.T) {
-	testRepo := impl.PaymentRepository{}
-	api := impl.PaymentsAPI{Repo: testRepo}
+	testRepo := impl.NewPaymentRepository()
+	api := impl.PaymentsAPI{Repo: *testRepo}
 
 	params := payments.CreatePaymentParams{
 		PaymentCreationRequest: &models.PaymentCreationRequest{Data: &testPayment},
@@ -135,10 +135,9 @@ func TestCreatePayment(t *testing.T) {
 
 func TestCreateConflictingPayment(t *testing.T) {
 	payment, _ := copyPayment(&testPayment)
-	testRepo := impl.PaymentRepository{
-		*payment.ID: payment,
-	}
-	api := impl.PaymentsAPI{Repo: testRepo}
+	testRepo := impl.NewPaymentRepository()
+	testRepo.Add(payment)
+	api := impl.PaymentsAPI{Repo: *testRepo}
 
 	params := payments.CreatePaymentParams{
 		PaymentCreationRequest: &models.PaymentCreationRequest{Data: &testPayment},
@@ -155,10 +154,9 @@ func TestCreateConflictingPayment(t *testing.T) {
 
 func TestGetPayment(t *testing.T) {
 	payment, _ := copyPayment(&testPayment)
-	testRepo := impl.PaymentRepository{
-		*payment.ID: payment,
-	}
-	api := impl.PaymentsAPI{Repo: testRepo}
+	testRepo := impl.NewPaymentRepository()
+	testRepo.Add(payment)
+	api := impl.PaymentsAPI{Repo: *testRepo}
 
 	pID := testPayment.ID.DeepCopy()
 	params := payments.GetPaymentParams{ID: *pID}
@@ -184,8 +182,8 @@ func TestGetPayment(t *testing.T) {
 }
 
 func TestGetNonExistentPayment(t *testing.T) {
-	testRepo := impl.PaymentRepository{}
-	api := impl.PaymentsAPI{Repo: testRepo}
+	testRepo := impl.NewPaymentRepository()
+	api := impl.PaymentsAPI{Repo: *testRepo}
 
 	pID := testPayment.ID.DeepCopy()
 	params := payments.GetPaymentParams{ID: *pID}
@@ -200,10 +198,9 @@ func TestGetNonExistentPayment(t *testing.T) {
 }
 
 func TestDeletePayment(t *testing.T) {
-	testRepo := impl.PaymentRepository{
-		*testPayment.ID: &testPayment,
-	}
-	api := impl.PaymentsAPI{Repo: testRepo}
+	testRepo := impl.NewPaymentRepository()
+	testRepo.Add(&testPayment)
+	api := impl.PaymentsAPI{Repo: *testRepo}
 
 	pID := testPayment.ID.DeepCopy()
 	params := payments.DeletePaymentParams{ID: *pID}
@@ -218,8 +215,8 @@ func TestDeletePayment(t *testing.T) {
 }
 
 func TestDeleteNonExistentPayment(t *testing.T) {
-	testRepo := impl.PaymentRepository{}
-	api := impl.PaymentsAPI{Repo: testRepo}
+	testRepo := impl.NewPaymentRepository()
+	api := impl.PaymentsAPI{Repo: *testRepo}
 
 	pID := testPayment.ID.DeepCopy()
 	params := payments.DeletePaymentParams{ID: *pID}
@@ -235,10 +232,9 @@ func TestDeleteNonExistentPayment(t *testing.T) {
 
 func TestUpdatePayment(t *testing.T) {
 	payment, _ := copyPayment(&testPayment)
-	testRepo := impl.PaymentRepository{
-		*payment.ID: payment,
-	}
-	api := impl.PaymentsAPI{Repo: testRepo}
+	testRepo := impl.NewPaymentRepository()
+	testRepo.Add(payment)
+	api := impl.PaymentsAPI{Repo: *testRepo}
 
 	updatedPayment, _ := copyPayment(payment)
 	updatedPayment.Attributes.Amount = models.Amount("150.00")
@@ -270,8 +266,8 @@ func TestUpdatePayment(t *testing.T) {
 }
 
 func TestUpdateNonExistentPayment(t *testing.T) {
-	testRepo := impl.PaymentRepository{}
-	api := impl.PaymentsAPI{Repo: testRepo}
+	testRepo := impl.NewPaymentRepository()
+	api := impl.PaymentsAPI{Repo: *testRepo}
 
 	updatedPayment, _ := copyPayment(&testPayment)
 	updatedPayment.Attributes.Amount = models.Amount("150.00")
