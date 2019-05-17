@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -14,6 +15,7 @@ import (
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/strfmt"
+	"github.com/google/go-cmp/cmp"
 	"github.com/mitchellh/copystructure"
 
 	"github.com/volmedo/pAPI/pkg/models"
@@ -104,151 +106,120 @@ func init() {
 	copystructure.Copiers[reflect.TypeOf(strfmt.Date{})] = dateCopier
 }
 
-func TestCreatePayment(t *testing.T) {
-	testRepo := service.NewPaymentRepository()
-	ps := service.PaymentsService{Repo: testRepo}
+type TestCase struct {
+	name      string
+	setupData *models.Payment
+	params    interface{}
+	wantCode  int
+	wantResp  interface{}
+}
 
+func TestPaymentsService(t *testing.T) {
+	tests := []TestCase{}
+
+	tests = append(tests, createTests()...)
+	tests = append(tests, getTests()...)
+	tests = append(tests, deleteTests()...)
+	tests = append(tests, updateTests()...)
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			testRepo := service.NewPaymentRepository()
+			if tc.setupData != nil {
+				err := testRepo.Add(tc.setupData)
+				if err != nil {
+					t.Fatalf("Error populating test repository: %v", err)
+				}
+			}
+			ps := service.PaymentsService{Repo: testRepo}
+
+			rr, err := doRequest(ps, tc.params)
+			if err != nil {
+				t.Fatalf(err.Error())
+			}
+
+			if rr.Code != tc.wantCode {
+				t.Errorf("Wrong status code: got %v, want %v", rr.Code, tc.wantCode)
+			}
+
+			if tc.wantResp == nil {
+				return
+			}
+
+			diff, err := compareResponses(rr.Body, tc.wantResp)
+			if err != nil {
+				t.Fatal(err.Error())
+			}
+			if diff != "" {
+				t.Fatalf("Payment data mismatch:\n%s", diff)
+			}
+		})
+	}
+}
+
+func createTests() []TestCase {
 	params := payments.CreatePaymentParams{
 		PaymentCreationRequest: &models.PaymentCreationRequest{Data: &testPayment},
 	}
-
-	rr, err := doRequest(ps, params)
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-
-	if rr.Code != http.StatusCreated {
-		t.Errorf("Wrong status code: got %v, expected %v", rr.Code, http.StatusCreated)
-	}
-
-	var respBody models.PaymentCreationResponse
-	decoder := json.NewDecoder(rr.Body)
-	err = decoder.Decode(&respBody)
-	if err != nil {
-		t.Errorf("Malformed JSON in response: %v", err)
-	}
-
-	if !reflect.DeepEqual(testPayment, *respBody.Data) {
-		t.Fatal("Payment data in request and response don't match")
+	wantResp := &models.PaymentCreationResponse{Data: &testPayment}
+	return []TestCase{
+		{
+			name:      "create",
+			setupData: nil,
+			params:    params,
+			wantCode:  http.StatusCreated,
+			wantResp:  wantResp,
+		}, {
+			name:      "create conflict",
+			setupData: &testPayment,
+			params:    params,
+			wantCode:  http.StatusConflict,
+			wantResp:  nil,
+		},
 	}
 }
 
-func TestCreateConflictingPayment(t *testing.T) {
-	payment, _ := copyPayment(&testPayment)
-	testRepo := service.NewPaymentRepository()
-	err := testRepo.Add(payment)
-	if err != nil {
-		t.Fatal("Error populating test repository")
-	}
-	ps := service.PaymentsService{Repo: testRepo}
-
-	params := payments.CreatePaymentParams{
-		PaymentCreationRequest: &models.PaymentCreationRequest{Data: &testPayment},
-	}
-	rr, err := doRequest(ps, params)
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-
-	if rr.Code != http.StatusConflict {
-		t.Errorf("Wrong status code: got %v, expected %v", rr.Code, http.StatusConflict)
+func getTests() []TestCase {
+	params := payments.GetPaymentParams{ID: *testPayment.ID}
+	wantResp := &models.PaymentDetailsResponse{Data: &testPayment}
+	return []TestCase{
+		{
+			name:      "get",
+			setupData: &testPayment,
+			params:    params,
+			wantCode:  http.StatusOK,
+			wantResp:  wantResp,
+		}, {
+			name:      "get non-existent",
+			setupData: nil,
+			params:    params,
+			wantCode:  http.StatusNotFound,
+			wantResp:  nil,
+		},
 	}
 }
 
-func TestGetPayment(t *testing.T) {
-	payment, _ := copyPayment(&testPayment)
-	testRepo := service.NewPaymentRepository()
-	err := testRepo.Add(payment)
-	if err != nil {
-		t.Fatal("Error populating test repository")
-	}
-	ps := service.PaymentsService{Repo: testRepo}
-
-	pID := testPayment.ID.DeepCopy()
-	params := payments.GetPaymentParams{ID: *pID}
-	rr, err := doRequest(ps, params)
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("Wrong status code: got %v, expected %v", rr.Code, http.StatusOK)
-	}
-
-	var respBody models.PaymentDetailsResponse
-	decoder := json.NewDecoder(rr.Body)
-	err = decoder.Decode(&respBody)
-	if err != nil {
-		t.Errorf("Malformed JSON in response: %v", err)
-	}
-
-	if !reflect.DeepEqual(testPayment, *respBody.Data) {
-		t.Fatal("Payment data in request and response don't match")
+func deleteTests() []TestCase {
+	params := payments.DeletePaymentParams{ID: *testPayment.ID}
+	return []TestCase{
+		{
+			name:      "delete",
+			setupData: &testPayment,
+			params:    params,
+			wantCode:  http.StatusNoContent,
+			wantResp:  nil,
+		}, {
+			name:      "delete non-existent",
+			setupData: nil,
+			params:    params,
+			wantCode:  http.StatusNotFound,
+			wantResp:  nil,
+		},
 	}
 }
 
-func TestGetNonExistentPayment(t *testing.T) {
-	testRepo := service.NewPaymentRepository()
-	ps := service.PaymentsService{Repo: testRepo}
-
-	pID := testPayment.ID.DeepCopy()
-	params := payments.GetPaymentParams{ID: *pID}
-	rr, err := doRequest(ps, params)
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-
-	if rr.Code != http.StatusNotFound {
-		t.Errorf("Wrong status code: got %v, expected %v", rr.Code, http.StatusNotFound)
-	}
-}
-
-func TestDeletePayment(t *testing.T) {
-	testRepo := service.NewPaymentRepository()
-	err := testRepo.Add(&testPayment)
-	if err != nil {
-		t.Fatal("Error populating test repository")
-	}
-	ps := service.PaymentsService{Repo: testRepo}
-
-	pID := testPayment.ID.DeepCopy()
-	params := payments.DeletePaymentParams{ID: *pID}
-	rr, err := doRequest(ps, params)
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-
-	if rr.Code != http.StatusNoContent {
-		t.Errorf("Wrong status code: got %v, expected %v", rr.Code, http.StatusNoContent)
-	}
-}
-
-func TestDeleteNonExistentPayment(t *testing.T) {
-	testRepo := service.NewPaymentRepository()
-	ps := service.PaymentsService{Repo: testRepo}
-
-	pID := testPayment.ID.DeepCopy()
-	params := payments.DeletePaymentParams{ID: *pID}
-	rr, err := doRequest(ps, params)
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-
-	if rr.Code != http.StatusNotFound {
-		t.Errorf("Wrong status code: got %v, expected %v", rr.Code, http.StatusNotFound)
-	}
-}
-
-func TestUpdatePayment(t *testing.T) {
-	payment, _ := copyPayment(&testPayment)
-	testRepo := service.NewPaymentRepository()
-	err := testRepo.Add(payment)
-	if err != nil {
-		t.Fatal("Error populating test repository")
-	}
-	ps := service.PaymentsService{Repo: testRepo}
-
-	updatedPayment, _ := copyPayment(payment)
+func updateTests() []TestCase {
+	updatedPayment := copyPayment(&testPayment)
 	updatedPayment.Attributes.Amount = models.Amount("150.00")
 	updatedPayment.Attributes.Fx.OriginalAmount = models.Amount("300.00")
 	updatedPayment.Attributes.PaymentID = "123456789012345679"
@@ -256,60 +227,28 @@ func TestUpdatePayment(t *testing.T) {
 		ID:                   *updatedPayment.ID,
 		PaymentUpdateRequest: &models.PaymentUpdateRequest{Data: updatedPayment},
 	}
-	rr, err := doRequest(ps, params)
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("Wrong status code: got %v, expected %v", rr.Code, http.StatusOK)
-	}
-
-	var respBody models.PaymentUpdateResponse
-	decoder := json.NewDecoder(rr.Body)
-	err = decoder.Decode(&respBody)
-	if err != nil {
-		t.Errorf("Malformed JSON in response: %v", err)
-	}
-
-	if !reflect.DeepEqual(*updatedPayment, *respBody.Data) {
-		t.Fatal("Payment data in request and response don't match")
+	wantResp := &models.PaymentUpdateResponse{Data: updatedPayment}
+	return []TestCase{
+		{
+			name:      "update",
+			setupData: &testPayment,
+			params:    params,
+			wantCode:  http.StatusOK,
+			wantResp:  wantResp,
+		}, {
+			name:      "update non-existent",
+			setupData: nil,
+			params:    params,
+			wantCode:  http.StatusNotFound,
+			wantResp:  nil,
+		},
 	}
 }
 
-func TestUpdateNonExistentPayment(t *testing.T) {
-	testRepo := service.NewPaymentRepository()
-	ps := service.PaymentsService{Repo: testRepo}
-
-	updatedPayment, _ := copyPayment(&testPayment)
-	updatedPayment.Attributes.Amount = models.Amount("150.00")
-	updatedPayment.Attributes.Fx.OriginalAmount = models.Amount("300.00")
-	updatedPayment.Attributes.PaymentID = "123456789012345679"
-	params := payments.UpdatePaymentParams{
-		ID:                   *updatedPayment.ID,
-		PaymentUpdateRequest: &models.PaymentUpdateRequest{Data: updatedPayment},
-	}
-	rr, err := doRequest(ps, params)
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-
-	if rr.Code != http.StatusNotFound {
-		t.Errorf("Wrong status code: got %v, expected %v", rr.Code, http.StatusNotFound)
-	}
-}
-
-func copyPayment(payment *models.Payment) (*models.Payment, error) {
-	dup, err := copystructure.Copy(*payment)
-	if err != nil {
-		return nil, err
-	}
-	paymentDup, ok := dup.(models.Payment)
-	if !ok {
-		return nil, errors.New("Error copying payment")
-	}
-
-	return &paymentDup, nil
+func copyPayment(payment *models.Payment) *models.Payment {
+	dup, _ := copystructure.Copy(*payment)
+	paymentDup := dup.(models.Payment)
+	return &paymentDup
 }
 
 func doRequest(ps service.PaymentsService, params interface{}) (*httptest.ResponseRecorder, error) {
@@ -337,4 +276,47 @@ func doRequest(ps service.PaymentsService, params interface{}) (*httptest.Respon
 	responder.WriteResponse(rr, runtime.JSONProducer())
 
 	return rr, nil
+}
+
+func compareResponses(body io.Reader, wantResp interface{}) (string, error) {
+	decoder := json.NewDecoder(body)
+	var want, got *models.Payment
+	var err error
+	switch resp := wantResp.(type) {
+	case *models.PaymentCreationResponse:
+		want = resp.Data
+		var gotResp models.PaymentCreationResponse
+		err = decoder.Decode(&gotResp)
+		if err != nil {
+			return "", fmt.Errorf("Malformed JSON in response: %v", err)
+		}
+		got = gotResp.Data
+	case *models.PaymentDetailsResponse:
+		want = resp.Data
+		var gotResp models.PaymentCreationResponse
+		err = decoder.Decode(&gotResp)
+		if err != nil {
+			return "", fmt.Errorf("Malformed JSON in response: %v", err)
+		}
+		got = gotResp.Data
+	case *models.PaymentUpdateResponse:
+		want = resp.Data
+		var gotResp models.PaymentCreationResponse
+		err = decoder.Decode(&gotResp)
+		if err != nil {
+			return "", fmt.Errorf("Malformed JSON in response: %v", err)
+		}
+		got = gotResp.Data
+	default:
+		return "", fmt.Errorf("Unable to decode response, unkwnown type: %T", resp)
+	}
+
+	// go-cmp requires a custom comparer for strfmt.Date because it has unexported fields
+	// see https://godoc.org/github.com/google/go-cmp/cmp/cmpopts#IgnoreUnexported
+	dateComparer := cmp.Comparer(func(d1, d2 strfmt.Date) bool {
+		return d1.String() == d2.String()
+	})
+	diff := cmp.Diff(got, want, dateComparer)
+
+	return diff, nil
 }
