@@ -37,6 +37,37 @@ func init() {
   "basePath": "/v1",
   "paths": {
     "/payments": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "List payments",
+        "operationId": "listPayments",
+        "parameters": [
+          {
+            "type": "integer",
+            "description": "Which page to select",
+            "name": "page[number]",
+            "in": "query"
+          },
+          {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer",
+            "description": "Number of items per page",
+            "name": "page[size]",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of payment details",
+            "schema": {
+              "$ref": "#/definitions/PaymentDetailsListResponse"
+            }
+          }
+        }
+      },
       "post": {
         "tags": [
           "Payments"
@@ -476,6 +507,20 @@ func init() {
         }
       }
     },
+    "PaymentDetailsListResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Payment"
+          }
+        },
+        "links": {
+          "$ref": "#/definitions/Links"
+        }
+      }
+    },
     "PaymentDetailsResponse": {
       "type": "object",
       "properties": {
@@ -577,6 +622,38 @@ func init() {
   "basePath": "/v1",
   "paths": {
     "/payments": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "List payments",
+        "operationId": "listPayments",
+        "parameters": [
+          {
+            "minimum": 0,
+            "type": "integer",
+            "description": "Which page to select",
+            "name": "page[number]",
+            "in": "query"
+          },
+          {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer",
+            "description": "Number of items per page",
+            "name": "page[size]",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of payment details",
+            "schema": {
+              "$ref": "#/definitions/PaymentDetailsListResponse"
+            }
+          }
+        }
+      },
       "post": {
         "tags": [
           "Payments"
@@ -1011,6 +1088,20 @@ func init() {
       "properties": {
         "data": {
           "$ref": "#/definitions/Payment"
+        },
+        "links": {
+          "$ref": "#/definitions/Links"
+        }
+      }
+    },
+    "PaymentDetailsListResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Payment"
+          }
         },
         "links": {
           "$ref": "#/definitions/Links"

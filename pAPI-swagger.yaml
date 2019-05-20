@@ -235,6 +235,15 @@ definitions:
     required:
       - data
     type: object
+  PaymentDetailsListResponse:
+    properties:
+      data:
+        items:
+          $ref: "#/definitions/Payment"
+        type: array
+      links:
+        $ref: "#/definitions/Links"
+    type: object
   PaymentDetailsResponse:
     properties:
       data:
@@ -297,6 +306,29 @@ info:
   version: "1"
 paths:
   /payments:
+    get:
+      operationId: listPayments
+      parameters:
+        - description: Which page to select
+          in: query
+          minimum: 0
+          name: "page[number]"
+          required: false
+          type: integer
+        - description: Number of items per page
+          in: query
+          maximum: 100
+          minimum: 1
+          name: "page[size]"
+          required: false
+          type: integer
+      responses:
+        200:
+          description: List of payment details
+          schema:
+            $ref: "#/definitions/PaymentDetailsListResponse"
+      summary: List payments
+      tags: [Payments]
     post:
       operationId: createPayment
       parameters:

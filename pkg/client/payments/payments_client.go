@@ -23,6 +23,8 @@ type API interface {
 	DeletePayment(ctx context.Context, params *DeletePaymentParams) (*DeletePaymentNoContent, error)
 	// GetPayment fetches payment
 	GetPayment(ctx context.Context, params *GetPaymentParams) (*GetPaymentOK, error)
+	// ListPayments lists payments
+	ListPayments(ctx context.Context, params *ListPaymentsParams) (*ListPaymentsOK, error)
 	// UpdatePayment updates payment details
 	UpdatePayment(ctx context.Context, params *UpdatePaymentParams) (*UpdatePaymentOK, error)
 }
@@ -114,6 +116,30 @@ func (a *Client) GetPayment(ctx context.Context, params *GetPaymentParams) (*Get
 		return nil, err
 	}
 	return result.(*GetPaymentOK), nil
+
+}
+
+/*
+ListPayments lists payments
+*/
+func (a *Client) ListPayments(ctx context.Context, params *ListPaymentsParams) (*ListPaymentsOK, error) {
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
+		ID:                 "listPayments",
+		Method:             "GET",
+		PathPattern:        "/payments",
+		ProducesMediaTypes: []string{"application/vnd.api+json"},
+		ConsumesMediaTypes: []string{"application/vnd.api+json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &ListPaymentsReader{formats: a.formats},
+		Context:            ctx,
+		Client:             params.HTTPClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*ListPaymentsOK), nil
 
 }
 

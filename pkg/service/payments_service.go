@@ -77,6 +77,19 @@ func (pr *PaymentRepository) Get(paymentID strfmt.UUID) (*models.Payment, error)
 	return payment, nil
 }
 
+// List returns a slice of payment resources. An empty slice will be returned
+// if no payment exists
+func (pr *PaymentRepository) List() []*models.Payment {
+	payments := make([]*models.Payment, 0, len(pr.m))
+	pr.RLock()
+	for _, payment := range pr.m {
+		payments = append(payments, payment)
+	}
+	pr.RUnlock()
+
+	return payments
+}
+
 // Update updates the details associated with the given paymentID
 //
 // Update returns an error if the paymentID does not exist in the collection
@@ -137,6 +150,13 @@ func (papi *PaymentsService) GetPayment(ctx context.Context, params payments.Get
 
 	resp := &models.PaymentDetailsResponse{Data: payment}
 	return payments.NewGetPaymentOK().WithPayload(resp)
+}
+
+// ListPayments Returns details of a collection of payments
+func (papi *PaymentsService) ListPayments(ctx context.Context, params payments.ListPaymentsParams) middleware.Responder {
+	list := papi.Repo.List()
+	resp := &models.PaymentDetailsListResponse{Data: list}
+	return payments.NewListPaymentsOK().WithPayload(resp)
 }
 
 // UpdatePayment Adds a new payment with the data included in params

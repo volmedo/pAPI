@@ -15,6 +15,7 @@ import (
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/strfmt"
+	"github.com/gofrs/uuid"
 	"github.com/google/go-cmp/cmp"
 	"github.com/mitchellh/copystructure"
 
@@ -108,7 +109,7 @@ func init() {
 
 type TestCase struct {
 	name      string
-	setupData *models.Payment
+	setupData []*models.Payment
 	params    interface{}
 	wantCode  int
 	wantResp  interface{}
@@ -121,14 +122,17 @@ func TestPaymentsService(t *testing.T) {
 	tests = append(tests, getTests()...)
 	tests = append(tests, deleteTests()...)
 	tests = append(tests, updateTests()...)
+	tests = append(tests, listTests()...)
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			testRepo := service.NewPaymentRepository()
 			if tc.setupData != nil {
-				err := testRepo.Add(tc.setupData)
-				if err != nil {
-					t.Fatalf("Error populating test repository: %v", err)
+				for _, payment := range tc.setupData {
+					err := testRepo.Add(payment)
+					if err != nil {
+						t.Fatalf("Error populating test repository: %v", err)
+					}
 				}
 			}
 			ps := service.PaymentsService{Repo: testRepo}
@@ -158,6 +162,7 @@ func TestPaymentsService(t *testing.T) {
 }
 
 func createTests() []TestCase {
+	setupData := []*models.Payment{&testPayment}
 	params := payments.CreatePaymentParams{
 		PaymentCreationRequest: &models.PaymentCreationRequest{Data: &testPayment},
 	}
@@ -171,7 +176,7 @@ func createTests() []TestCase {
 			wantResp:  wantResp,
 		}, {
 			name:      "create conflict",
-			setupData: &testPayment,
+			setupData: setupData,
 			params:    params,
 			wantCode:  http.StatusConflict,
 			wantResp:  nil,
@@ -180,12 +185,13 @@ func createTests() []TestCase {
 }
 
 func getTests() []TestCase {
+	setupData := []*models.Payment{&testPayment}
 	params := payments.GetPaymentParams{ID: *testPayment.ID}
 	wantResp := &models.PaymentDetailsResponse{Data: &testPayment}
 	return []TestCase{
 		{
 			name:      "get",
-			setupData: &testPayment,
+			setupData: setupData,
 			params:    params,
 			wantCode:  http.StatusOK,
 			wantResp:  wantResp,
@@ -200,11 +206,12 @@ func getTests() []TestCase {
 }
 
 func deleteTests() []TestCase {
+	setupData := []*models.Payment{&testPayment}
 	params := payments.DeletePaymentParams{ID: *testPayment.ID}
 	return []TestCase{
 		{
 			name:      "delete",
-			setupData: &testPayment,
+			setupData: setupData,
 			params:    params,
 			wantCode:  http.StatusNoContent,
 			wantResp:  nil,
@@ -219,6 +226,7 @@ func deleteTests() []TestCase {
 }
 
 func updateTests() []TestCase {
+	setupData := []*models.Payment{&testPayment}
 	updatedPayment := copyPayment(&testPayment)
 	updatedPayment.Attributes.Amount = models.Amount("150.00")
 	updatedPayment.Attributes.Fx.OriginalAmount = models.Amount("300.00")
@@ -231,7 +239,7 @@ func updateTests() []TestCase {
 	return []TestCase{
 		{
 			name:      "update",
-			setupData: &testPayment,
+			setupData: setupData,
 			params:    params,
 			wantCode:  http.StatusOK,
 			wantResp:  wantResp,
@@ -241,6 +249,28 @@ func updateTests() []TestCase {
 			params:    params,
 			wantCode:  http.StatusNotFound,
 			wantResp:  nil,
+		},
+	}
+}
+
+func listTests() []TestCase {
+	setupData := make([]*models.Payment, 0)
+	for i := 0; i < 20; i++ {
+		payment := copyPayment(&testPayment)
+		newID, _ := uuid.NewV4()
+		pID := strfmt.UUID(newID.String())
+		payment.ID = &pID
+		setupData = append(setupData, payment)
+	}
+	params := payments.ListPaymentsParams{}
+	wantResp := &models.PaymentDetailsListResponse{Data: setupData}
+	return []TestCase{
+		{
+			name:      "list",
+			setupData: setupData,
+			params:    params,
+			wantCode:  http.StatusOK,
+			wantResp:  wantResp,
 		},
 	}
 }
@@ -258,12 +288,19 @@ func doRequest(ps service.PaymentsService, params interface{}) (*httptest.Respon
 	switch p := params.(type) {
 	case payments.CreatePaymentParams:
 		responder = ps.CreatePayment(ctx, p)
+
 	case payments.GetPaymentParams:
 		responder = ps.GetPayment(ctx, p)
+
 	case payments.DeletePaymentParams:
 		responder = ps.DeletePayment(ctx, p)
+
 	case payments.UpdatePaymentParams:
 		responder = ps.UpdatePayment(ctx, p)
+
+	case payments.ListPaymentsParams:
+		responder = ps.ListPayments(ctx, p)
+
 	default:
 		return nil, fmt.Errorf("Unknown params type: %T", p)
 	}
@@ -280,33 +317,51 @@ func doRequest(ps service.PaymentsService, params interface{}) (*httptest.Respon
 
 func compareResponses(body io.Reader, wantResp interface{}) (string, error) {
 	decoder := json.NewDecoder(body)
-	var want, got *models.Payment
+	// Use maps to allow direct comparison, independent of element order
+	want := make(map[strfmt.UUID]*models.Payment)
+	got := make(map[strfmt.UUID]*models.Payment)
 	var err error
 	switch resp := wantResp.(type) {
 	case *models.PaymentCreationResponse:
-		want = resp.Data
+		want[*resp.Data.ID] = resp.Data
 		var gotResp models.PaymentCreationResponse
 		err = decoder.Decode(&gotResp)
 		if err != nil {
 			return "", fmt.Errorf("Malformed JSON in response: %v", err)
 		}
-		got = gotResp.Data
+		got[*gotResp.Data.ID] = gotResp.Data
+
 	case *models.PaymentDetailsResponse:
-		want = resp.Data
+		want[*resp.Data.ID] = resp.Data
 		var gotResp models.PaymentCreationResponse
 		err = decoder.Decode(&gotResp)
 		if err != nil {
 			return "", fmt.Errorf("Malformed JSON in response: %v", err)
 		}
-		got = gotResp.Data
+		got[*gotResp.Data.ID] = gotResp.Data
+
 	case *models.PaymentUpdateResponse:
-		want = resp.Data
+		want[*resp.Data.ID] = resp.Data
 		var gotResp models.PaymentCreationResponse
 		err = decoder.Decode(&gotResp)
 		if err != nil {
 			return "", fmt.Errorf("Malformed JSON in response: %v", err)
 		}
-		got = gotResp.Data
+		got[*gotResp.Data.ID] = gotResp.Data
+
+	case *models.PaymentDetailsListResponse:
+		for _, payment := range resp.Data {
+			want[*payment.ID] = payment
+		}
+		var gotResp models.PaymentDetailsListResponse
+		err = decoder.Decode(&gotResp)
+		if err != nil {
+			return "", fmt.Errorf("Malformed JSON in response: %v", err)
+		}
+		for _, payment := range gotResp.Data {
+			got[*payment.ID] = payment
+		}
+
 	default:
 		return "", fmt.Errorf("Unable to decode response, unkwnown type: %T", resp)
 	}
