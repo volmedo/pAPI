@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"sort"
 	"sync"
 
 	"github.com/go-openapi/runtime/middleware"
@@ -78,16 +79,40 @@ func (pr *PaymentRepository) Get(paymentID strfmt.UUID) (*models.Payment, error)
 }
 
 // List returns a slice of payment resources. An empty slice will be returned
-// if no payment exists
-func (pr *PaymentRepository) List() []*models.Payment {
-	payments := make([]*models.Payment, 0, len(pr.m))
+// if no payment exists.
+//
+// List implements basic pagination by means of offset and limit parameters.
+// List will return an error if offset is beyond the number of elements available.
+// A limit of 0 will return all elements available. Both parameters default to 0.
+func (pr *PaymentRepository) List(offset, limit int64) ([]*models.Payment, error) {
+	// Check params before anything else
+	from := offset
+	to := offset + limit
+	if from >= int64(len(pr.m)) {
+		return nil, fmt.Errorf("Requested item at %d but only %d items exist", from, len(pr.m))
+	}
+	if limit == 0 || to > int64(len(pr.m)) {
+		to = int64(len(pr.m))
+	}
+
 	pr.RLock()
-	for _, payment := range pr.m {
-		payments = append(payments, payment)
+	var ids []string
+	for id := range pr.m {
+		ids = append(ids, id.String())
 	}
 	pr.RUnlock()
 
-	return payments
+	sort.Strings(ids)
+
+	ids = ids[from:to]
+	payments := make([]*models.Payment, 0, len(ids))
+	pr.RLock()
+	for _, id := range ids {
+		payments = append(payments, pr.m[strfmt.UUID(id)])
+	}
+	pr.RUnlock()
+
+	return payments, nil
 }
 
 // Update updates the details associated with the given paymentID
@@ -154,7 +179,25 @@ func (papi *PaymentsService) GetPayment(ctx context.Context, params payments.Get
 
 // ListPayments Returns details of a collection of payments
 func (papi *PaymentsService) ListPayments(ctx context.Context, params payments.ListPaymentsParams) middleware.Responder {
-	list := papi.Repo.List()
+	var pageNumber, pageSize int64
+	if params.PageNumber != nil {
+		pageNumber = *params.PageNumber
+	}
+	if params.PageSize != nil {
+		pageSize = *params.PageSize
+	}
+	if pageSize == 0 && pageNumber != 0 {
+		apiError := newAPIError("Bad pagination params: page[number] present without page[size]")
+		return payments.NewListPaymentsBadRequest().WithPayload(apiError)
+	}
+
+	offset := pageNumber * pageSize
+	limit := pageSize
+	list, err := papi.Repo.List(offset, limit)
+	if err != nil {
+		apiError := newAPIError(err.Error())
+		return payments.NewListPaymentsBadRequest().WithPayload(apiError)
+	}
 	resp := &models.PaymentDetailsListResponse{Data: list}
 	return payments.NewListPaymentsOK().WithPayload(resp)
 }

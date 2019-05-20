@@ -186,6 +186,16 @@ func (c *Client) iRequestAListOfPayments() error {
 	return nil
 }
 
+func (c *Client) iRequestAListOfPaymentsPageWithPaymentsPerPage(pageNumber, pageSize int) error {
+	ctx := context.Background()
+	pNumber := int64(pageNumber)
+	pSize := int64(pageSize)
+	params := payments.NewListPaymentsParams().WithPageNumber(&pNumber).WithPageSize(&pSize)
+
+	c.lastResponse, c.lastError = c.ListPayments(ctx, params)
+	return nil
+}
+
 func (c *Client) iUpdateThePaymentWithIDWithNewDetailsInJSON(paymentID string, jsonPayment *gherkin.DocString) error {
 	var payment models.Payment
 	decoder := json.NewDecoder(bytes.NewBuffer([]byte(jsonPayment.Content)))
@@ -324,6 +334,7 @@ func FeatureContext(s *godog.Suite) {
 	s.Step(`^I request the payment with ID "([^"]*)"$`, client.iRequestThePaymentWithID)
 	s.Step(`^I update the payment with ID "([^"]*)" with new details in JSON:$`, client.iUpdateThePaymentWithIDWithNewDetailsInJSON)
 	s.Step(`^I request a list of payments$`, client.iRequestAListOfPayments)
+	s.Step(`^I request a list of payments, page (\d+) with (\d+) payments per page$`, client.iRequestAListOfPaymentsPageWithPaymentsPerPage)
 	s.Step(`^I get a[n]? "([^"]*)" response$`, client.iGetAResponse)
 	s.Step(`^the response contains a payment described in JSON as:$`, client.theResponseContainsAPaymentDescribedInJSONAs)
 

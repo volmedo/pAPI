@@ -65,6 +65,12 @@ func init() {
             "schema": {
               "$ref": "#/definitions/PaymentDetailsListResponse"
             }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
           }
         }
       },
@@ -650,6 +656,12 @@ func init() {
             "description": "List of payment details",
             "schema": {
               "$ref": "#/definitions/PaymentDetailsListResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
             }
           }
         }

@@ -56,3 +56,47 @@ func (o *ListPaymentsOK) WriteResponse(rw http.ResponseWriter, producer runtime.
 		}
 	}
 }
+
+// ListPaymentsBadRequestCode is the HTTP code returned for type ListPaymentsBadRequest
+const ListPaymentsBadRequestCode int = 400
+
+/*ListPaymentsBadRequest Bad Request
+
+swagger:response listPaymentsBadRequest
+*/
+type ListPaymentsBadRequest struct {
+
+	/*
+	  In: Body
+	*/
+	Payload *models.APIError `json:"body,omitempty"`
+}
+
+// NewListPaymentsBadRequest creates ListPaymentsBadRequest with default headers values
+func NewListPaymentsBadRequest() *ListPaymentsBadRequest {
+
+	return &ListPaymentsBadRequest{}
+}
+
+// WithPayload adds the payload to the list payments bad request response
+func (o *ListPaymentsBadRequest) WithPayload(payload *models.APIError) *ListPaymentsBadRequest {
+	o.Payload = payload
+	return o
+}
+
+// SetPayload sets the payload to the list payments bad request response
+func (o *ListPaymentsBadRequest) SetPayload(payload *models.APIError) {
+	o.Payload = payload
+}
+
+// WriteResponse to the client
+func (o *ListPaymentsBadRequest) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+
+	rw.WriteHeader(400)
+	if o.Payload != nil {
+		payload := o.Payload
+		if err := producer.Produce(rw, payload); err != nil {
+			panic(err) // let the recovery middleware deal with this
+		}
+	}
+}
