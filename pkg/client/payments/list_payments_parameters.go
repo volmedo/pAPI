@@ -21,8 +21,13 @@ import (
 // NewListPaymentsParams creates a new ListPaymentsParams object
 // with the default values initialized.
 func NewListPaymentsParams() *ListPaymentsParams {
-	var ()
+	var (
+		pageNumberDefault = int64(0)
+		pageSizeDefault   = int64(10)
+	)
 	return &ListPaymentsParams{
+		PageNumber: &pageNumberDefault,
+		PageSize:   &pageSizeDefault,
 
 		timeout: cr.DefaultTimeout,
 	}
@@ -31,8 +36,13 @@ func NewListPaymentsParams() *ListPaymentsParams {
 // NewListPaymentsParamsWithTimeout creates a new ListPaymentsParams object
 // with the default values initialized, and the ability to set a timeout on a request
 func NewListPaymentsParamsWithTimeout(timeout time.Duration) *ListPaymentsParams {
-	var ()
+	var (
+		pageNumberDefault = int64(0)
+		pageSizeDefault   = int64(10)
+	)
 	return &ListPaymentsParams{
+		PageNumber: &pageNumberDefault,
+		PageSize:   &pageSizeDefault,
 
 		timeout: timeout,
 	}
@@ -41,8 +51,13 @@ func NewListPaymentsParamsWithTimeout(timeout time.Duration) *ListPaymentsParams
 // NewListPaymentsParamsWithContext creates a new ListPaymentsParams object
 // with the default values initialized, and the ability to set a context for a request
 func NewListPaymentsParamsWithContext(ctx context.Context) *ListPaymentsParams {
-	var ()
+	var (
+		pageNumberDefault = int64(0)
+		pageSizeDefault   = int64(10)
+	)
 	return &ListPaymentsParams{
+		PageNumber: &pageNumberDefault,
+		PageSize:   &pageSizeDefault,
 
 		Context: ctx,
 	}
@@ -51,8 +66,13 @@ func NewListPaymentsParamsWithContext(ctx context.Context) *ListPaymentsParams {
 // NewListPaymentsParamsWithHTTPClient creates a new ListPaymentsParams object
 // with the default values initialized, and the ability to set a custom HTTPClient for a request
 func NewListPaymentsParamsWithHTTPClient(client *http.Client) *ListPaymentsParams {
-	var ()
+	var (
+		pageNumberDefault = int64(0)
+		pageSizeDefault   = int64(10)
+	)
 	return &ListPaymentsParams{
+		PageNumber: &pageNumberDefault,
+		PageSize:   &pageSizeDefault,
 		HTTPClient: client,
 	}
 }

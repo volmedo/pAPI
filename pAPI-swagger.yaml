@@ -312,6 +312,7 @@ paths:
         - description: Which page to select
           in: query
           minimum: 0
+          default: 0
           name: "page[number]"
           required: false
           type: integer
@@ -319,6 +320,7 @@ paths:
           in: query
           maximum: 100
           minimum: 1
+          default: 10
           name: "page[size]"
           required: false
           type: integer

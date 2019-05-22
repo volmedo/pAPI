@@ -179,17 +179,9 @@ func (papi *PaymentsService) GetPayment(ctx context.Context, params payments.Get
 
 // ListPayments Returns details of a collection of payments
 func (papi *PaymentsService) ListPayments(ctx context.Context, params payments.ListPaymentsParams) middleware.Responder {
-	var pageNumber, pageSize int64
-	if params.PageNumber != nil {
-		pageNumber = *params.PageNumber
-	}
-	if params.PageSize != nil {
-		pageSize = *params.PageSize
-	}
-	if pageSize == 0 && pageNumber != 0 {
-		apiError := newAPIError("Bad pagination params: page[number] present without page[size]")
-		return payments.NewListPaymentsBadRequest().WithPayload(apiError)
-	}
+	// Request params have already been validated by go-swagger generated code
+	pageNumber := *params.PageNumber
+	pageSize := *params.PageSize
 
 	offset := pageNumber * pageSize
 	limit := pageSize

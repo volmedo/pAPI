@@ -46,6 +46,7 @@ func init() {
         "parameters": [
           {
             "type": "integer",
+            "default": 0,
             "description": "Which page to select",
             "name": "page[number]",
             "in": "query"
@@ -54,6 +55,7 @@ func init() {
             "maximum": 100,
             "minimum": 1,
             "type": "integer",
+            "default": 10,
             "description": "Number of items per page",
             "name": "page[size]",
             "in": "query"
@@ -638,6 +640,7 @@ func init() {
           {
             "minimum": 0,
             "type": "integer",
+            "default": 0,
             "description": "Which page to select",
             "name": "page[number]",
             "in": "query"
@@ -646,6 +649,7 @@ func init() {
             "maximum": 100,
             "minimum": 1,
             "type": "integer",
+            "default": 10,
             "description": "Number of items per page",
             "name": "page[size]",
             "in": "query"

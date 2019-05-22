@@ -273,34 +273,47 @@ func listTests() []TestCase {
 		setupData = append(setupData, payment)
 	}
 
-	noParams := TestCase{
-		name:      "list",
-		setupData: setupData,
-		params:    payments.ListPaymentsParams{},
-		wantCode:  http.StatusOK,
-		wantResp:  &models.PaymentDetailsListResponse{Data: setupData},
+	newParams := func(pNum, pSize *int64) payments.ListPaymentsParams {
+		params := payments.NewListPaymentsParams()
+		if pNum != nil {
+			params.PageNumber = pNum
+		}
+		if pSize != nil {
+			params.PageSize = pSize
+		}
+
+		return params
 	}
 
-	pageNumber := new(int64)
-	*pageNumber = 0
+	params := newParams(nil, nil)
+	noParams := TestCase{ // pageNumber defaults to 0 and pageSize defaults to 10 according to spec
+		name:      "list",
+		setupData: setupData,
+		params:    params,
+		wantCode:  http.StatusOK,
+		wantResp:  &models.PaymentDetailsListResponse{Data: setupData[:10]},
+	}
+
 	pageSize := new(int64)
 	*pageSize = 5
-	firstFive := TestCase{
+	params = newParams(nil, pageSize)
+	firstFive := TestCase{ // pageNumber defaults to 0 according to spec
 		name:      "list first five results",
 		setupData: setupData,
-		params:    payments.ListPaymentsParams{PageNumber: pageNumber, PageSize: pageSize},
+		params:    params,
 		wantCode:  http.StatusOK,
 		wantResp:  &models.PaymentDetailsListResponse{Data: setupData[:5]},
 	}
 
-	pageNumber = new(int64)
+	pageNumber := new(int64)
 	*pageNumber = 3
 	pageSize = new(int64)
 	*pageSize = 3
+	params = newParams(pageNumber, pageSize)
 	from9To11 := TestCase{
 		name:      "list results from 9 to 11",
 		setupData: setupData,
-		params:    payments.ListPaymentsParams{PageNumber: pageNumber, PageSize: pageSize},
+		params:    params,
 		wantCode:  http.StatusOK,
 		wantResp:  &models.PaymentDetailsListResponse{Data: setupData[9:12]},
 	}
@@ -309,42 +322,35 @@ func listTests() []TestCase {
 	*pageNumber = 3
 	pageSize = new(int64)
 	*pageSize = 6
+	params = newParams(pageNumber, pageSize)
 	lastPage := TestCase{
 		name:      "list last page with remaining elements",
 		setupData: setupData,
-		params:    payments.ListPaymentsParams{PageNumber: pageNumber, PageSize: pageSize},
+		params:    params,
 		wantCode:  http.StatusOK,
 		wantResp:  &models.PaymentDetailsListResponse{Data: setupData[18:]},
 	}
 
-	pageSize = new(int64)
-	*pageSize = 7
-	pageSizeButNoPageNumber := TestCase{
-		name:      "list with page size 7 and no page number",
-		setupData: setupData,
-		params:    payments.ListPaymentsParams{PageSize: pageSize},
-		wantCode:  http.StatusOK,
-		wantResp:  &models.PaymentDetailsListResponse{Data: setupData[:7]},
-	}
-
 	pageNumber = new(int64)
-	*pageNumber = 2
-	pageNumberButNoPageSize := TestCase{
+	*pageNumber = 1
+	params = newParams(pageNumber, nil)
+	pageNumberButNoPageSize := TestCase{ // pageSize defaults to 10 according to spec
 		name:      "list with page number 2 and no page size",
 		setupData: setupData,
-		params:    payments.ListPaymentsParams{PageNumber: pageNumber},
-		wantCode:  http.StatusBadRequest,
-		wantResp:  nil,
+		params:    params,
+		wantCode:  http.StatusOK,
+		wantResp:  &models.PaymentDetailsListResponse{Data: setupData[10:]},
 	}
 
 	pageNumber = new(int64)
 	*pageNumber = 10
 	pageSize = new(int64)
 	*pageSize = 5
+	params = newParams(pageNumber, pageSize)
 	paginationOffLimits := TestCase{
 		name:      "list a resource beyond the limit",
 		setupData: setupData,
-		params:    payments.ListPaymentsParams{PageNumber: pageNumber, PageSize: pageSize},
+		params:    params,
 		wantCode:  http.StatusBadRequest,
 		wantResp:  nil,
 	}
@@ -354,7 +360,6 @@ func listTests() []TestCase {
 		firstFive,
 		from9To11,
 		lastPage,
-		pageSizeButNoPageNumber,
 		pageNumberButNoPageSize,
 		paginationOffLimits,
 	}

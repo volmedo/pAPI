@@ -18,10 +18,21 @@ import (
 )
 
 // NewListPaymentsParams creates a new ListPaymentsParams object
-// no default values defined in spec.
+// with the default values initialized.
 func NewListPaymentsParams() ListPaymentsParams {
 
-	return ListPaymentsParams{}
+	var (
+		// initialize parameters with default values
+
+		pageNumberDefault = int64(0)
+		pageSizeDefault   = int64(10)
+	)
+
+	return ListPaymentsParams{
+		PageNumber: &pageNumberDefault,
+
+		PageSize: &pageSizeDefault,
+	}
 }
 
 // ListPaymentsParams contains all the bound params for the list payments operation
@@ -36,12 +47,14 @@ type ListPaymentsParams struct {
 	/*Which page to select
 	  Minimum: 0
 	  In: query
+	  Default: 0
 	*/
 	PageNumber *int64
 	/*Number of items per page
 	  Maximum: 100
 	  Minimum: 1
 	  In: query
+	  Default: 10
 	*/
 	PageSize *int64
 }
@@ -83,6 +96,7 @@ func (o *ListPaymentsParams) bindPageNumber(rawData []string, hasKey bool, forma
 	// Required: false
 	// AllowEmptyValue: false
 	if raw == "" { // empty values pass all other validations
+		// Default values have been previously initialized by NewListPaymentsParams()
 		return nil
 	}
 
@@ -119,6 +133,7 @@ func (o *ListPaymentsParams) bindPageSize(rawData []string, hasKey bool, formats
 	// Required: false
 	// AllowEmptyValue: false
 	if raw == "" { // empty values pass all other validations
+		// Default values have been previously initialized by NewListPaymentsParams()
 		return nil
 	}
 

@@ -1,7 +1,7 @@
 Feature: List payments
     Clients should be able to retrieve details about a collection of payments
 
-    Scenario: List payments
+    Scenario: List payments without pagination (API defaults to 10 payments/page)
         Given there are payments with IDs:
             | 29bc7b20-f134-4aee-954d-36fb1daa8c13 |
             | ac6bd520-c5b9-4573-969a-99d46690aa26 |
@@ -36,16 +36,6 @@ Feature: List payments
             | 527e3807-4dfe-46dc-a4b8-c2eeba6aab62 |
             | 532a2efb-958e-4368-be85-480fe049209d |
             | 5fd8ed2b-407a-4089-ae25-b2fd70a83250 |
-            | 6c37bb86-be69-4a2d-8e7a-dbb6f48f2e29 |
-            | 80f43626-e895-447e-99b6-6b260627f3ca |
-            | 8d05996d-aad6-4ff2-813a-91130a4188f7 |
-            | 9c27337b-2c8a-40b1-abab-a51ec8d6561c |
-            | ac6bd520-c5b9-4573-969a-99d46690aa26 |
-            | c59ddeae-ba53-4290-8304-61bb59dd2f15 |
-            | d73e8403-c6a3-49eb-b24b-8c441496a5fd |
-            | ebc831fc-ef0b-486a-b8e1-291aecc601ba |
-            | eee4cb9a-f9c1-4d51-95f3-0647fb174124 |
-            | f2fdea8a-2358-4459-b126-eda71065d5c5 |
 
     Scenario: List payments with pagination
         Given there are payments with IDs:
