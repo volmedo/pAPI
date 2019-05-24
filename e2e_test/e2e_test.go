@@ -29,8 +29,6 @@ var (
 	port     int
 	basePath string
 
-	testPayment models.Payment
-
 	opt = godog.Options{
 		Output: colors.Colored(os.Stdout),
 		Format: "progress",
@@ -39,15 +37,31 @@ var (
 
 func init() {
 	godog.BindFlags("godog.", flag.CommandLine, &opt)
+}
 
-	id := strfmt.UUID("4ee3a8d8-ca7b-4290-a52c-dd5b6165ec43")
+type Client struct {
+	*payments.Client
+	lastResponse  interface{}
+	lastError     error
+	registeredIDs map[strfmt.UUID]struct{} // This property allows for cleaning after each scenario
+}
+
+func newClient(apiURL *url.URL) *Client {
+	conf := client.Config{URL: apiURL}
+	payments := client.New(conf)
+	registeredIDs := make(map[strfmt.UUID]struct{})
+	return &Client{payments.Payments, nil, nil, registeredIDs}
+}
+
+func (c *Client) thereArePaymentsWithIDs(ids *gherkin.DataTable) error {
+	// For simplicity, the same test payment will be created with different IDs
 	version := int64(0)
 	orgID := strfmt.UUID("743d5b63-8e6f-432e-a8fa-c5d8d2ee5fcb")
 	procDate, _ := time.Parse(strfmt.RFC3339FullDate, "2017-01-18")
 
-	testPayment = models.Payment{
+	testPayment := models.Payment{
 		Type:           "Payment",
-		ID:             &id,
+		ID:             nil,
 		Version:        &version,
 		OrganisationID: &orgID,
 		Attributes: &models.PaymentAttributes{
@@ -104,26 +118,98 @@ func init() {
 			},
 		},
 	}
-}
 
-type Client struct {
-	*payments.Client
-	lastResponse *payments.CreatePaymentCreated
-	lastError    error
-}
+	for _, row := range ids.Rows {
+		idString := row.Cells[0].Value
+		id := strfmt.UUID(idString)
+		testPayment.ID = &id
 
-func newClient(apiURL *url.URL) *Client {
-	conf := client.Config{URL: apiURL}
-	payments := client.New(conf)
-	return &Client{payments.Payments, nil, nil}
+		ctx := context.Background()
+		req := &models.PaymentCreationRequest{Data: &testPayment}
+		params := payments.NewCreatePaymentParams().WithPaymentCreationRequest(req)
+
+		_, err := c.CreatePayment(ctx, params)
+		if err != nil {
+			return fmt.Errorf("Error creating payment: %s", err)
+		}
+
+		c.registeredIDs[id] = struct{}{}
+	}
+
+	return nil
 }
 
 func (c *Client) iCreateANewPaymentDescribedInJSONAs(jsonPayment *gherkin.DocString) error {
+	var payment models.Payment
+	decoder := json.NewDecoder(bytes.NewBuffer([]byte(jsonPayment.Content)))
+	err := decoder.Decode(&payment)
+	if err != nil {
+		return fmt.Errorf("Invalid JSON string in test specification: %s", err)
+	}
+
 	ctx := context.Background()
-	req := &models.PaymentCreationRequest{Data: &testPayment}
+	req := &models.PaymentCreationRequest{Data: &payment}
 	params := payments.NewCreatePaymentParams().WithPaymentCreationRequest(req)
 
 	c.lastResponse, c.lastError = c.CreatePayment(ctx, params)
+	if c.lastError == nil {
+		c.registeredIDs[*payment.ID] = struct{}{}
+	}
+	return nil
+}
+
+func (c *Client) iDeleteThePaymentWithID(paymentID string) error {
+	pID := strfmt.UUID(paymentID)
+	ctx := context.Background()
+	params := payments.NewDeletePaymentParams().WithID(pID)
+
+	c.lastResponse, c.lastError = c.DeletePayment(ctx, params)
+	if c.lastError == nil {
+		delete(c.registeredIDs, pID)
+	}
+	return nil
+}
+
+func (c *Client) iRequestThePaymentWithID(paymentID string) error {
+	ctx := context.Background()
+	params := payments.NewGetPaymentParams().WithID(strfmt.UUID(paymentID))
+
+	c.lastResponse, c.lastError = c.GetPayment(ctx, params)
+	return nil
+}
+
+func (c *Client) iRequestAListOfPayments() error {
+	ctx := context.Background()
+	params := payments.NewListPaymentsParams()
+
+	c.lastResponse, c.lastError = c.ListPayments(ctx, params)
+	return nil
+}
+
+func (c *Client) iRequestAListOfPaymentsPageWithPaymentsPerPage(pageNumber, pageSize int) error {
+	ctx := context.Background()
+	pNumber := int64(pageNumber)
+	pSize := int64(pageSize)
+	params := payments.NewListPaymentsParams().WithPageNumber(&pNumber).WithPageSize(&pSize)
+
+	c.lastResponse, c.lastError = c.ListPayments(ctx, params)
+	return nil
+}
+
+func (c *Client) iUpdateThePaymentWithIDWithNewDetailsInJSON(paymentID string, jsonPayment *gherkin.DocString) error {
+	var payment models.Payment
+	decoder := json.NewDecoder(bytes.NewBuffer([]byte(jsonPayment.Content)))
+	err := decoder.Decode(&payment)
+	if err != nil {
+		return fmt.Errorf("Invalid JSON string in test specification: %s", err)
+	}
+
+	ctx := context.Background()
+	pID := strfmt.UUID(paymentID)
+	req := &models.PaymentUpdateRequest{Data: &payment}
+	params := payments.NewUpdatePaymentParams().WithID(pID).WithPaymentUpdateRequest(req)
+
+	c.lastResponse, c.lastError = c.UpdatePayment(ctx, params)
 	return nil
 }
 
@@ -138,8 +224,32 @@ func (c *Client) iGetAResponse(expectedStatus string) error {
 }
 
 func (c *Client) theResponseContainsAPaymentDescribedInJSONAs(jsonPayment *gherkin.DocString) error {
-	resp := c.lastResponse
-	gotPayment := *resp.Payload.Data
+	var gotPayment models.Payment
+	switch resp := c.lastResponse.(type) {
+	case *payments.CreatePaymentCreated:
+		respData := resp.Payload.Data
+		if respData == nil {
+			return errors.New("Empty response")
+		}
+		gotPayment = *respData
+
+	case *payments.GetPaymentOK:
+		respData := resp.Payload.Data
+		if respData == nil {
+			return errors.New("Empty response")
+		}
+		gotPayment = *respData
+
+	case *payments.UpdatePaymentOK:
+		respData := resp.Payload.Data
+		if respData == nil {
+			return errors.New("Empty response")
+		}
+		gotPayment = *respData
+
+	default:
+		return fmt.Errorf("Unknown response type %T", resp)
+	}
 
 	var expectedPayment models.Payment
 	decoder := json.NewDecoder(bytes.NewBuffer([]byte(jsonPayment.Content)))
@@ -149,6 +259,40 @@ func (c *Client) theResponseContainsAPaymentDescribedInJSONAs(jsonPayment *gherk
 	}
 
 	if !reflect.DeepEqual(gotPayment, expectedPayment) {
+		return errors.New("Payment data in the response don't match expected payment data")
+	}
+
+	return nil
+}
+
+func (c *Client) theResponseContainsAListOfPaymentsWithIDs(ids *gherkin.DataTable) error {
+	resp, ok := c.lastResponse.(*payments.ListPaymentsOK)
+	if !ok {
+		return errors.New("Wrong response type")
+	}
+
+	gotPayments := resp.Payload.Data
+	if len(gotPayments) == 0 {
+		return errors.New("Empty data in response")
+	}
+
+	// Use maps for IDs so that they can be compared directly using reflect.DeepEqual
+	gotIDs := make(map[strfmt.UUID]struct{})
+	for _, payment := range gotPayments {
+		if payment == nil {
+			return errors.New("Empty payment in data")
+		}
+		gotIDs[*payment.ID] = struct{}{}
+	}
+
+	wantIDs := make(map[strfmt.UUID]struct{})
+	for _, row := range ids.Rows {
+		idString := row.Cells[0].Value
+		id := strfmt.UUID(idString)
+		wantIDs[id] = struct{}{}
+	}
+
+	if !reflect.DeepEqual(gotIDs, wantIDs) {
 		return errors.New("Payment data in the response don't match expected payment data")
 	}
 
@@ -182,7 +326,25 @@ func FeatureContext(s *godog.Suite) {
 	}
 	client := newClient(apiURL)
 
+	s.Step(`^there are payments with IDs:$`, client.thereArePaymentsWithIDs)
+	s.Step(`^the response contains a list of payments with the following IDs:$`, client.theResponseContainsAListOfPaymentsWithIDs)
 	s.Step(`^I create a new payment described in JSON as:$`, client.iCreateANewPaymentDescribedInJSONAs)
-	s.Step(`^I get a "([^"]*)" response$`, client.iGetAResponse)
+	s.Step(`^there is a payment described in JSON as:$`, client.iCreateANewPaymentDescribedInJSONAs)
+	s.Step(`^I delete the payment with ID "([^"]*)"$`, client.iDeleteThePaymentWithID)
+	s.Step(`^I request the payment with ID "([^"]*)"$`, client.iRequestThePaymentWithID)
+	s.Step(`^I update the payment with ID "([^"]*)" with new details in JSON:$`, client.iUpdateThePaymentWithIDWithNewDetailsInJSON)
+	s.Step(`^I request a list of payments$`, client.iRequestAListOfPayments)
+	s.Step(`^I request a list of payments, page (\d+) with (\d+) payments per page$`, client.iRequestAListOfPaymentsPageWithPaymentsPerPage)
+	s.Step(`^I get a[n]? "([^"]*)" response$`, client.iGetAResponse)
 	s.Step(`^the response contains a payment described in JSON as:$`, client.theResponseContainsAPaymentDescribedInJSONAs)
+
+	// Ensure there are no payments in the server before each scenario
+	s.BeforeScenario(func(interface{}) {
+		for id := range client.registeredIDs {
+			err := client.iDeleteThePaymentWithID(id.String())
+			if err != nil {
+				panic("Error deleting registered payments")
+			}
+		}
+	})
 }

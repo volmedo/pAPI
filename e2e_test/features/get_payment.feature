@@ -1,8 +1,8 @@
-Feature: Create payment
-    Clients should be able to create new payments
+Feature: Get payment
+    Clients should be able to retrieve information about payments
 
-    Scenario: Create a payment
-        When I create a new payment described in JSON as:
+    Scenario: Get a payment
+        Given there is a payment described in JSON as:
             """
             {
                 "type": "Payment",
@@ -64,7 +64,8 @@ Feature: Create payment
                 }
             }
             """
-        Then I get a "Created" response
+        When I request the payment with ID "4ee3a8d8-ca7b-4290-a52c-dd5b6165ec43"
+        Then I get an "OK" response
         And the response contains a payment described in JSON as:
             """
             {

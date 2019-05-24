@@ -13,12 +13,12 @@ install: true
 
 script:
   - make lint
-  - make test
+  - make test.unit
   - make build
   - make terraform.chkfmt
   - make terraform.init
   - make terraform.keygen
   - make terraform.validate
   - make terraform.apply
-  - make test-e2e
+  - make test.e2e
   - make terraform.destroy

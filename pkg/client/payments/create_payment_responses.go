@@ -32,6 +32,13 @@ func (o *CreatePaymentReader) ReadResponse(response runtime.ClientResponse, cons
 		}
 		return result, nil
 
+	case 409:
+		result := NewCreatePaymentConflict()
+		if err := result.readResponse(response, consumer, o.formats); err != nil {
+			return nil, err
+		}
+		return nil, result
+
 	default:
 		return nil, runtime.NewAPIError("unknown error", response, response.Code())
 	}
@@ -57,6 +64,35 @@ func (o *CreatePaymentCreated) Error() string {
 func (o *CreatePaymentCreated) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	o.Payload = new(models.PaymentCreationResponse)
+
+	// response payload
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+		return err
+	}
+
+	return nil
+}
+
+// NewCreatePaymentConflict creates a CreatePaymentConflict with default headers values
+func NewCreatePaymentConflict() *CreatePaymentConflict {
+	return &CreatePaymentConflict{}
+}
+
+/*CreatePaymentConflict handles this case with default header values.
+
+A payment with the given ID already exists
+*/
+type CreatePaymentConflict struct {
+	Payload *models.APIError
+}
+
+func (o *CreatePaymentConflict) Error() string {
+	return fmt.Sprintf("[POST /payments][%d] createPaymentConflict  %+v", 409, o.Payload)
+}
+
+func (o *CreatePaymentConflict) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
+
+	o.Payload = new(models.APIError)
 
 	// response payload
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {

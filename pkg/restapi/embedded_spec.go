@@ -18,6 +18,9 @@ var (
 
 func init() {
 	SwaggerJSON = json.RawMessage([]byte(`{
+  "consumes": [
+    "application/vnd.api+json"
+  ],
   "produces": [
     "application/vnd.api+json"
   ],
@@ -34,10 +37,46 @@ func init() {
   "basePath": "/v1",
   "paths": {
     "/payments": {
-      "post": {
-        "consumes": [
-          "application/vnd.api+json"
+      "get": {
+        "tags": [
+          "Payments"
         ],
+        "summary": "List payments",
+        "operationId": "listPayments",
+        "parameters": [
+          {
+            "type": "integer",
+            "default": 0,
+            "description": "Which page to select",
+            "name": "page[number]",
+            "in": "query"
+          },
+          {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer",
+            "default": 10,
+            "description": "Number of items per page",
+            "name": "page[size]",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of payment details",
+            "schema": {
+              "$ref": "#/definitions/PaymentDetailsListResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          }
+        }
+      },
+      "post": {
         "tags": [
           "Payments"
         ],
@@ -58,6 +97,112 @@ func init() {
             "schema": {
               "$ref": "#/definitions/PaymentCreationResponse"
             }
+          },
+          "409": {
+            "description": "A payment with the given ID already exists",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          }
+        }
+      }
+    },
+    "/payments/{id}": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Fetch payment",
+        "operationId": "getPayment",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of payment to fetch",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment details",
+            "schema": {
+              "$ref": "#/definitions/PaymentDetailsResponse"
+            }
+          },
+          "404": {
+            "description": "Payment Not Found",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Update payment details",
+        "operationId": "updatePayment",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of payment to update",
+            "name": "id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "New payment details",
+            "name": "Payment update request",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/PaymentUpdateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment details",
+            "schema": {
+              "$ref": "#/definitions/PaymentUpdateResponse"
+            }
+          },
+          "404": {
+            "description": "Payment Not Found",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Deletes a payment resource",
+        "operationId": "deletePayment",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of payment to delete",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Payment deleted OK. No body content will be returned"
+          },
+          "404": {
+            "description": "Payment Not Found",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
           }
         }
       }
@@ -74,6 +219,18 @@ func init() {
       "type": "string",
       "pattern": "^[0-9.]{0,20}$",
       "example": "10.00"
+    },
+    "ApiError": {
+      "type": "object",
+      "properties": {
+        "error_code": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "error_message": {
+          "type": "string"
+        }
+      }
     },
     "BankId": {
       "description": "Financial institution identification",
@@ -358,6 +515,31 @@ func init() {
         }
       }
     },
+    "PaymentDetailsListResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Payment"
+          }
+        },
+        "links": {
+          "$ref": "#/definitions/Links"
+        }
+      }
+    },
+    "PaymentDetailsResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/Payment"
+        },
+        "links": {
+          "$ref": "#/definitions/Links"
+        }
+      }
+    },
     "PaymentParty": {
       "type": "object",
       "properties": {
@@ -400,10 +582,38 @@ func init() {
           "example": "Norman Smith"
         }
       }
+    },
+    "PaymentUpdateRequest": {
+      "type": "object",
+      "required": [
+        "data"
+      ],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/Payment"
+        }
+      }
+    },
+    "PaymentUpdateResponse": {
+      "type": "object",
+      "required": [
+        "data"
+      ],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/Payment"
+        },
+        "links": {
+          "$ref": "#/definitions/Links"
+        }
+      }
     }
   }
 }`))
 	FlatSwaggerJSON = json.RawMessage([]byte(`{
+  "consumes": [
+    "application/vnd.api+json"
+  ],
   "produces": [
     "application/vnd.api+json"
   ],
@@ -420,10 +630,47 @@ func init() {
   "basePath": "/v1",
   "paths": {
     "/payments": {
-      "post": {
-        "consumes": [
-          "application/vnd.api+json"
+      "get": {
+        "tags": [
+          "Payments"
         ],
+        "summary": "List payments",
+        "operationId": "listPayments",
+        "parameters": [
+          {
+            "minimum": 0,
+            "type": "integer",
+            "default": 0,
+            "description": "Which page to select",
+            "name": "page[number]",
+            "in": "query"
+          },
+          {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer",
+            "default": 10,
+            "description": "Number of items per page",
+            "name": "page[size]",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of payment details",
+            "schema": {
+              "$ref": "#/definitions/PaymentDetailsListResponse"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          }
+        }
+      },
+      "post": {
         "tags": [
           "Payments"
         ],
@@ -444,6 +691,112 @@ func init() {
             "schema": {
               "$ref": "#/definitions/PaymentCreationResponse"
             }
+          },
+          "409": {
+            "description": "A payment with the given ID already exists",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          }
+        }
+      }
+    },
+    "/payments/{id}": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Fetch payment",
+        "operationId": "getPayment",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of payment to fetch",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment details",
+            "schema": {
+              "$ref": "#/definitions/PaymentDetailsResponse"
+            }
+          },
+          "404": {
+            "description": "Payment Not Found",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Update payment details",
+        "operationId": "updatePayment",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of payment to update",
+            "name": "id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "New payment details",
+            "name": "Payment update request",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/PaymentUpdateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment details",
+            "schema": {
+              "$ref": "#/definitions/PaymentUpdateResponse"
+            }
+          },
+          "404": {
+            "description": "Payment Not Found",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Deletes a payment resource",
+        "operationId": "deletePayment",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID of payment to delete",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Payment deleted OK. No body content will be returned"
+          },
+          "404": {
+            "description": "Payment Not Found",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
           }
         }
       }
@@ -460,6 +813,18 @@ func init() {
       "type": "string",
       "pattern": "^[0-9.]{0,20}$",
       "example": "10.00"
+    },
+    "ApiError": {
+      "type": "object",
+      "properties": {
+        "error_code": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "error_message": {
+          "type": "string"
+        }
+      }
     },
     "BankId": {
       "description": "Financial institution identification",
@@ -745,6 +1110,31 @@ func init() {
         }
       }
     },
+    "PaymentDetailsListResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Payment"
+          }
+        },
+        "links": {
+          "$ref": "#/definitions/Links"
+        }
+      }
+    },
+    "PaymentDetailsResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/Payment"
+        },
+        "links": {
+          "$ref": "#/definitions/Links"
+        }
+      }
+    },
     "PaymentParty": {
       "type": "object",
       "properties": {
@@ -785,6 +1175,31 @@ func init() {
           "description": "Beneficiary/debtor name",
           "type": "string",
           "example": "Norman Smith"
+        }
+      }
+    },
+    "PaymentUpdateRequest": {
+      "type": "object",
+      "required": [
+        "data"
+      ],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/Payment"
+        }
+      }
+    },
+    "PaymentUpdateResponse": {
+      "type": "object",
+      "required": [
+        "data"
+      ],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/Payment"
+        },
+        "links": {
+          "$ref": "#/definitions/Links"
         }
       }
     }

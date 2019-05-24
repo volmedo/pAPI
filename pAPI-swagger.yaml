@@ -1,4 +1,5 @@
 basePath: /v1
+consumes: [application/vnd.api+json]
 definitions:
   AccountNumber:
     description: Account number
@@ -9,6 +10,11 @@ definitions:
     example: "10.00"
     pattern: ^[0-9.]{0,20}$
     type: string
+  ApiError:
+    properties:
+      error_code: { format: uuid, type: string }
+      error_message: { type: string }
+    type: object
   BankId:
     description: Financial institution identification
     example: "333333"
@@ -229,6 +235,22 @@ definitions:
     required:
       - data
     type: object
+  PaymentDetailsListResponse:
+    properties:
+      data:
+        items:
+          $ref: "#/definitions/Payment"
+        type: array
+      links:
+        $ref: "#/definitions/Links"
+    type: object
+  PaymentDetailsResponse:
+    properties:
+      data:
+        $ref: "#/definitions/Payment"
+      links:
+        $ref: "#/definitions/Links"
+    type: object
   PaymentParty:
     properties:
       account_name:
@@ -261,6 +283,22 @@ definitions:
         example: Norman Smith
         type: string
     type: object
+  PaymentUpdateRequest:
+    properties:
+      data:
+        $ref: "#/definitions/Payment"
+    required:
+      - data
+    type: object
+  PaymentUpdateResponse:
+    properties:
+      data:
+        $ref: "#/definitions/Payment"
+      links:
+        $ref: "#/definitions/Links"
+    required:
+      - data
+    type: object
 host: api.example.com
 info:
   description: Payments API as specified in Form3 take home test
@@ -268,8 +306,36 @@ info:
   version: "1"
 paths:
   /payments:
+    get:
+      operationId: listPayments
+      parameters:
+        - description: Which page to select
+          in: query
+          minimum: 0
+          default: 0
+          name: "page[number]"
+          required: false
+          type: integer
+        - description: Number of items per page
+          in: query
+          maximum: 100
+          minimum: 1
+          default: 10
+          name: "page[size]"
+          required: false
+          type: integer
+      responses:
+        200:
+          description: List of payment details
+          schema:
+            $ref: "#/definitions/PaymentDetailsListResponse"
+        400:
+          description: Bad Request
+          schema:
+            $ref: "#/definitions/ApiError"
+      summary: List payments
+      tags: [Payments]
     post:
-      consumes: [application/vnd.api+json]
       operationId: createPayment
       parameters:
         - in: body
@@ -281,7 +347,75 @@ paths:
           description: Payment created successfully
           schema:
             $ref: "#/definitions/PaymentCreationResponse"
+        409:
+          description: A payment with the given ID already exists
+          schema:
+            $ref: "#/definitions/ApiError"
       summary: Create payment
+      tags: [Payments]
+  /payments/{id}:
+    delete:
+      operationId: deletePayment
+      parameters:
+        - description: ID of payment to delete
+          format: uuid
+          in: path
+          name: id
+          required: true
+          type: string
+      responses:
+        204:
+          description: Payment deleted OK. No body content will be returned
+        404:
+          description: Payment Not Found
+          schema:
+            $ref: "#/definitions/ApiError"
+      summary: Deletes a payment resource
+      tags: [Payments]
+    get:
+      operationId: getPayment
+      parameters:
+        - description: ID of payment to fetch
+          format: uuid
+          in: path
+          name: id
+          required: true
+          type: string
+      responses:
+        200:
+          description: Payment details
+          schema:
+            $ref: "#/definitions/PaymentDetailsResponse"
+        404:
+          description: Payment Not Found
+          schema:
+            $ref: "#/definitions/ApiError"
+      summary: Fetch payment
+      tags: [Payments]
+    put:
+      operationId: updatePayment
+      parameters:
+        - description: ID of payment to update
+          format: uuid
+          in: path
+          name: id
+          required: true
+          type: string
+        - description: New payment details
+          in: body
+          name: Payment update request
+          schema:
+            $ref: "#/definitions/PaymentUpdateRequest"
+      responses:
+        200:
+          description: Payment details
+          schema:
+            $ref: "#/definitions/PaymentUpdateResponse"
+        404:
+          description: Payment Not Found
+          schema:
+            $ref: "#/definitions/ApiError"
+      summary: Update payment details
       tags: [Payments]
 produces: [application/vnd.api+json]
 schemes: [http]
