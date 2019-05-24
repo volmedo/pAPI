@@ -8,7 +8,23 @@
 
 pAPI is a payments API written in Go, a fictional service that offers standard CRUD functionality on `Payment` resources.
 
-The main objective of this repo is serving as an example of what I consider modern software engineering practices applied to the development of backend architectures based in microservices. It is aimed at covering not only the development of the software itself, but also the tools and strategies needed to walk the full way from writing code to getting the service in production, following the principles around agile development and DevOps.
+The main objective of this repo is serving as an example of what I consider modern software engineering practices applied to the development of backend architectures based in microservices. It is aimed at covering not only the development of the software itself, but also the tools and strategies needed to walk the full way from writing the first line of code to getting the service in production, following the principles around agile development and DevOps.
+
+## Architecture overview
+
+The payments API is implemented as a microservice that offers a REST API that allows clients to manage payment resources by offering standard CRUD functionality. API messages are written using the JSON format and are conformant with the [json:api specification](https://jsonapi.org/).
+
+[Swagger/OpenAPI](https://swagger.io/) is used to specify the API contract with clients. Swagger allows writing API specifications using the YAML format. Apart from serving as documentation of the API's exported functionality and exptected inputs and outputs, swagger files can be used to automatically generate model and boilerplate code which takes care of common tasks such as request handling and input validation.
+
+## Test-Driven Development/Behaviour-Driven Development
+
+The Payments Service has been developed using TDD from start to finish. The development process starts by defining how the system as a whole should behave to satisfy business needs and requirements. These business requirements are usually expressed in the form of functionality the service is needed to offer to potential users and, thus, end to end or acceptance tests are the best kind of test to capture the essence of these requirements. Since these tests describe the system's capabilities from the viewpoint of an external user, they are usually part of the communication between technical and not technical stakeholders of the project. Because of this, [Cucumber](https://cucumber.io/) and the [Gherkin syntax](https://cucumber.io/docs/gherkin/) are great for acceptance tests, as they allow writing them in a form close to natural language, eliminating the need of having a technical background to read or write them.
+
+This project's end to end tests are written in the form of `feature` files using Gherkin syntax. These files are then processed by [godog](https://github.com/DATA-DOG/godog), the semi-official implementation of Cucumber for Go. `feature` files, along with step implementations, can be found in the [e2e_test] folder.
+
+The test strategy I used follows the well-known Test Pyramid approach, where e2e tests are at the top and unit tests form the base of the pyramid. Usually, e2e tests are more expensive in terms of time required to set up the environment and run them (as an example, e2e tests in this project are run against real infrastructure that gets deployed before the tests run and destroyed afterwards). Due to their higher cost, e2e tests are usually limited in number and only happy paths are checked as a way to guarantee that the system as a whole delivers the required functionality.
+
+Deeper in the service logic, functionality is checked by unit tests. These tests are fast and are run several times during development. Writing the tests before any logic is implemented eases the process of defining what functionality is really needed, what architecture should be used and how the unit under test is expected to behave. As opposed to e2e tests, unit tests are developer tests, so the language used for development is also the most convenient to write unit tests in. Moreover, one of the great things about Go is its rich tooling, and testing is a first-class citizen in this tooling. Unit tests in this project use plain `go test` constructs. I don't even use an assertion library (with [testify](https://github.com/stretchr/testify) being one of the most prominent examples) in favor of standard mechanisms, such as `reflect.DeepEqual`. My opinion is that the little added value is not worth the time needed to learn and handle yet another API. Of course, this (as several other things) is debatable and I'm always open to being convinced of the opposite :).
 
 ## Continous Integration/Continuous Deployment
 
