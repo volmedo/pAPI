@@ -127,7 +127,7 @@ func TestPaymentsService(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			testRepo := service.NewPaymentRepository()
+			testRepo := service.NewMapPaymentRepository()
 			if tc.setupData != nil {
 				for _, payment := range tc.setupData {
 					err := testRepo.Add(payment)

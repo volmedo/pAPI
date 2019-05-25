@@ -15,7 +15,7 @@ func main() {
 	flag.Parse()
 
 	ps := &service.PaymentsService{
-		Repo: service.NewPaymentRepository(),
+		Repo: service.NewMapPaymentRepository(),
 	}
 
 	handler, err := restapi.Handler(restapi.Config{
