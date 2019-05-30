@@ -16,6 +16,22 @@ SWAGGER = docker run --rm -e GOPATH=/go -v "$(PWD)":"$(PWD)" -w "$(PWD)" quay.io
 GOLANGCI_LINT_VER ?= v1.16.0
 GOLANGCI_LINT = docker run --rm -v "$(PWD)":"$(PWD)" -w "$(PWD)" golangci/golangci-lint:$(GOLANGCI_LINT_VER)
 
+POSTGRES_VER ?= 11.3-alpine
+CONTAINER_NAME = db
+DB_HOST ?= localhost
+DB_PORT ?= 5432
+DB_USER ?= papi_user
+DB_PASS ?= papi_test_pass
+DB_NAME ?= papi_db
+POSTGRES_START = docker run --name $(CONTAINER_NAME) \
+					-e POSTGRES_USER=$(DB_USER) \
+					-e POSTGRES_PASSWORD=$(DB_PASS) \
+					-e POSTGRES_DB=$(DB_NAME) \
+					-p 5432:$(DB_PORT) \
+					-d postgres:$(POSTGRES_VER)
+POSTGRES_WAIT = until docker run --rm --link $(CONTAINER_NAME):pg postgres:$(POSTGRES_VER) pg_isready -U postgres -h pg; do sleep 1; done
+POSTGRES_STOP = docker stop $(CONTAINER_NAME) && docker rm $(CONTAINER_NAME)
+
 TF_SSH_KEY_PATH ?= "$(PWD)/tf_ssh_key"
 TF_DIR ?= terraform
 TF_VER ?= 0.11.13
@@ -37,10 +53,22 @@ swagger.generate.client:
 	$(SWAGGER) generate client --spec=$(SPEC) --template=stratoscale --target=$(PKG) --skip-models
 
 lint:
-	$(GOLANGCI_LINT) golangci-lint run --no-config --skip-dirs "$(PKG)/(client|models|restapi)" --disable unused
+	$(GOLANGCI_LINT) golangci-lint run --no-config --skip-dirs "$(PKG)/(client|models|restapi)" --deadline 2m
 
 test.unit:
 	$(GO) test -v -race ./$(PKG)/service
+
+test.integration:
+	$(POSTGRES_START)
+	$(POSTGRES_WAIT)
+	-$(GO) test -v -race -tags=integration ./$(PKG)/service \
+		-dbhost=$(DB_HOST) \
+		-dbport=$(DB_PORT) \
+		-dbuser=$(DB_USER) \
+		-dbpass=$(DB_PASS) \
+		-dbname=$(DB_NAME) \
+		-migrations=./migrations
+	$(POSTGRES_STOP)
 
 build: ./$(CMD)/server/main.go
 	GOOS=$(TARGET_OS) GOARCH=$(TARGET_ARCH) $(GO) build -o $(SRV_BIN_NAME) ./$(CMD)/server/main.go
@@ -91,8 +119,9 @@ clean:
 	rm -f $(TF_SSH_KEY_PATH)
 	rm -f $(TF_SSH_KEY_PATH).pub
 
-.PHONY: $(patsubst %,swagger.%,validate clean generate.client generate)
-.PHONY: lint test.unit test.e2e
+.PHONY: $(patsubst %,swagger.%,validate clean generate.client generate.server)
+.PHONY: lint
+.PHONY: $(patsubst %,test.%,unit integration e2e.local e2e)
 .PHONY: $(patsubst %,terraform.%,keygen init chkfmt validate apply output destroy)
 .PHONY: clean
 

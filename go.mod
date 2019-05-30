@@ -12,6 +12,8 @@ require (
 	github.com/go-openapi/swag v0.19.0
 	github.com/go-openapi/validate v0.19.0
 	github.com/gofrs/uuid v3.2.0+incompatible
+	github.com/golang-migrate/migrate/v4 v4.3.1
 	github.com/google/go-cmp v0.3.0
+	github.com/lib/pq v1.1.1
 	github.com/mitchellh/copystructure v1.0.0
 )

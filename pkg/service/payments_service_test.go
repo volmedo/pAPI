@@ -1,13 +1,17 @@
+// +build integration
+
 package service_test
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"sort"
 	"testing"
@@ -25,7 +29,11 @@ import (
 	"github.com/volmedo/pAPI/pkg/service"
 )
 
-var testPayment models.Payment
+var (
+	ps          *service.PaymentsService
+	testRepo    *service.DBPaymentRepository
+	testPayment models.Payment
+)
 
 func init() {
 	id := strfmt.UUID("4ee3a8d8-ca7b-4290-a52c-dd5b6165ec43")
@@ -108,6 +116,46 @@ func init() {
 	copystructure.Copiers[reflect.TypeOf(strfmt.Date{})] = dateCopier
 }
 
+func TestMain(m *testing.M) {
+	var dbHost, dbUser, dbPass, dbName, migrationsPath string
+	var dbPort int
+	flag.StringVar(&dbHost, "dbhost", "localhost", "Address of the server that hosts the DB")
+	flag.IntVar(&dbPort, "dbport", 5432, "Port where the DB server is listening for connections")
+	flag.StringVar(&dbUser, "dbuser", "postgres", "User to use when accessing the DB")
+	flag.StringVar(&dbPass, "dbpass", "postgres", "Password to use when accessing the DB")
+	flag.StringVar(&dbName, "dbname", "postgres", "Name of the DB to connect to")
+	flag.StringVar(&migrationsPath, "migrations", "./migrations", "Path to the folder that contains the migration files")
+
+	flag.Parse()
+
+	// Setup DB
+	dbConf := &service.DBConfig{
+		Host:           dbHost,
+		Port:           dbPort,
+		User:           dbUser,
+		Pass:           dbPass,
+		Name:           dbName,
+		MigrationsPath: migrationsPath,
+	}
+	var err error
+	testRepo, err = service.NewDBPaymentRepository(dbConf)
+	if err != nil {
+		panic(fmt.Sprintf("Unable to create test DB repo: %v", err))
+	}
+
+	ps = &service.PaymentsService{Repo: testRepo}
+
+	// Run tests
+	exitCode := m.Run()
+
+	// Teardown DB
+	if err := testRepo.Close(); err != nil {
+		panic(fmt.Sprintf("Error closing test DB repo: %v", err))
+	}
+
+	os.Exit(exitCode)
+}
+
 type TestCase struct {
 	name      string
 	setupData []*models.Payment
@@ -127,7 +175,11 @@ func TestPaymentsService(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			testRepo := service.NewMapPaymentRepository()
+			// Arrange
+			if err := testRepo.DeleteAll(); err != nil {
+				t.Fatalf("Error cleaning test repository: %v", err)
+			}
+
 			if tc.setupData != nil {
 				for _, payment := range tc.setupData {
 					err := testRepo.Add(payment)
@@ -136,15 +188,16 @@ func TestPaymentsService(t *testing.T) {
 					}
 				}
 			}
-			ps := service.PaymentsService{Repo: testRepo}
 
+			// Act
 			rr, err := doRequest(ps, tc.params)
 			if err != nil {
 				t.Fatalf(err.Error())
 			}
 
+			// Assert
 			if rr.Code != tc.wantCode {
-				t.Errorf("Wrong status code: got %v, want %v", rr.Code, tc.wantCode)
+				t.Fatalf("Wrong status code: got %v, want %v", rr.Code, tc.wantCode)
 			}
 
 			if tc.wantResp == nil {
@@ -160,6 +213,107 @@ func TestPaymentsService(t *testing.T) {
 			}
 		})
 	}
+}
+
+func copyPayment(payment *models.Payment) *models.Payment {
+	dup, _ := copystructure.Copy(*payment)
+	paymentDup := dup.(models.Payment)
+	return &paymentDup
+}
+
+func doRequest(ps *service.PaymentsService, params interface{}) (*httptest.ResponseRecorder, error) {
+	ctx := context.Background()
+
+	var responder middleware.Responder
+	switch p := params.(type) {
+	case payments.CreatePaymentParams:
+		responder = ps.CreatePayment(ctx, p)
+
+	case payments.GetPaymentParams:
+		responder = ps.GetPayment(ctx, p)
+
+	case payments.DeletePaymentParams:
+		responder = ps.DeletePayment(ctx, p)
+
+	case payments.UpdatePaymentParams:
+		responder = ps.UpdatePayment(ctx, p)
+
+	case payments.ListPaymentsParams:
+		responder = ps.ListPayments(ctx, p)
+
+	default:
+		return nil, fmt.Errorf("Unknown params type: %T", p)
+	}
+
+	if responder == nil {
+		return nil, errors.New("The returned responder should not be nil")
+	}
+
+	rr := httptest.NewRecorder()
+	responder.WriteResponse(rr, runtime.JSONProducer())
+
+	return rr, nil
+}
+
+func compareResponses(body io.Reader, wantResp interface{}) (string, error) {
+	decoder := json.NewDecoder(body)
+	// Use maps to allow direct comparison, independent of element order
+	want := make(map[strfmt.UUID]*models.Payment)
+	got := make(map[strfmt.UUID]*models.Payment)
+	var err error
+	switch resp := wantResp.(type) {
+	case *models.PaymentCreationResponse:
+		want[*resp.Data.ID] = resp.Data
+		var gotResp models.PaymentCreationResponse
+		err = decoder.Decode(&gotResp)
+		if err != nil {
+			return "", fmt.Errorf("Malformed JSON in response: %v", err)
+		}
+		got[*gotResp.Data.ID] = gotResp.Data
+
+	case *models.PaymentDetailsResponse:
+		want[*resp.Data.ID] = resp.Data
+		var gotResp models.PaymentCreationResponse
+		err = decoder.Decode(&gotResp)
+		if err != nil {
+			return "", fmt.Errorf("Malformed JSON in response: %v", err)
+		}
+		got[*gotResp.Data.ID] = gotResp.Data
+
+	case *models.PaymentUpdateResponse:
+		want[*resp.Data.ID] = resp.Data
+		var gotResp models.PaymentCreationResponse
+		err = decoder.Decode(&gotResp)
+		if err != nil {
+			return "", fmt.Errorf("Malformed JSON in response: %v", err)
+		}
+		got[*gotResp.Data.ID] = gotResp.Data
+
+	case *models.PaymentDetailsListResponse:
+		for _, payment := range resp.Data {
+			want[*payment.ID] = payment
+		}
+		var gotResp models.PaymentDetailsListResponse
+		err = decoder.Decode(&gotResp)
+		if err != nil {
+			return "", fmt.Errorf("Malformed JSON in response: %v", err)
+		}
+		for _, payment := range gotResp.Data {
+			got[*payment.ID] = payment
+		}
+
+	default:
+		return "", fmt.Errorf("Unable to decode response, unkwnown type: %T", resp)
+	}
+
+	// go-cmp requires a custom comparer for strfmt.Date because it has unexported fields
+	// see https://godoc.org/github.com/google/go-cmp/cmp/cmpopts#IgnoreUnexported
+	dateComparer := cmp.Comparer(func(d1, d2 strfmt.Date) bool {
+		return d1.String() == d2.String()
+	})
+	diff := cmp.Diff(got, want, dateComparer)
+
+	return diff, nil
 }
 
 func createTests() []TestCase {
@@ -363,105 +517,4 @@ func listTests() []TestCase {
 		pageNumberButNoPageSize,
 		paginationOffLimits,
 	}
-}
-
-func copyPayment(payment *models.Payment) *models.Payment {
-	dup, _ := copystructure.Copy(*payment)
-	paymentDup := dup.(models.Payment)
-	return &paymentDup
-}
-
-func doRequest(ps service.PaymentsService, params interface{}) (*httptest.ResponseRecorder, error) {
-	ctx := context.Background()
-
-	var responder middleware.Responder
-	switch p := params.(type) {
-	case payments.CreatePaymentParams:
-		responder = ps.CreatePayment(ctx, p)
-
-	case payments.GetPaymentParams:
-		responder = ps.GetPayment(ctx, p)
-
-	case payments.DeletePaymentParams:
-		responder = ps.DeletePayment(ctx, p)
-
-	case payments.UpdatePaymentParams:
-		responder = ps.UpdatePayment(ctx, p)
-
-	case payments.ListPaymentsParams:
-		responder = ps.ListPayments(ctx, p)
-
-	default:
-		return nil, fmt.Errorf("Unknown params type: %T", p)
-	}
-
-	if responder == nil {
-		return nil, errors.New("The returned responder should not be nil")
-	}
-
-	rr := httptest.NewRecorder()
-	responder.WriteResponse(rr, runtime.JSONProducer())
-
-	return rr, nil
-}
-
-func compareResponses(body io.Reader, wantResp interface{}) (string, error) {
-	decoder := json.NewDecoder(body)
-	// Use maps to allow direct comparison, independent of element order
-	want := make(map[strfmt.UUID]*models.Payment)
-	got := make(map[strfmt.UUID]*models.Payment)
-	var err error
-	switch resp := wantResp.(type) {
-	case *models.PaymentCreationResponse:
-		want[*resp.Data.ID] = resp.Data
-		var gotResp models.PaymentCreationResponse
-		err = decoder.Decode(&gotResp)
-		if err != nil {
-			return "", fmt.Errorf("Malformed JSON in response: %v", err)
-		}
-		got[*gotResp.Data.ID] = gotResp.Data
-
-	case *models.PaymentDetailsResponse:
-		want[*resp.Data.ID] = resp.Data
-		var gotResp models.PaymentCreationResponse
-		err = decoder.Decode(&gotResp)
-		if err != nil {
-			return "", fmt.Errorf("Malformed JSON in response: %v", err)
-		}
-		got[*gotResp.Data.ID] = gotResp.Data
-
-	case *models.PaymentUpdateResponse:
-		want[*resp.Data.ID] = resp.Data
-		var gotResp models.PaymentCreationResponse
-		err = decoder.Decode(&gotResp)
-		if err != nil {
-			return "", fmt.Errorf("Malformed JSON in response: %v", err)
-		}
-		got[*gotResp.Data.ID] = gotResp.Data
-
-	case *models.PaymentDetailsListResponse:
-		for _, payment := range resp.Data {
-			want[*payment.ID] = payment
-		}
-		var gotResp models.PaymentDetailsListResponse
-		err = decoder.Decode(&gotResp)
-		if err != nil {
-			return "", fmt.Errorf("Malformed JSON in response: %v", err)
-		}
-		for _, payment := range gotResp.Data {
-			got[*payment.ID] = payment
-		}
-
-	default:
-		return "", fmt.Errorf("Unable to decode response, unkwnown type: %T", resp)
-	}
-
-	// go-cmp requires a custom comparer for strfmt.Date because it has unexported fields
-	// see https://godoc.org/github.com/google/go-cmp/cmp/cmpopts#IgnoreUnexported
-	dateComparer := cmp.Comparer(func(d1, d2 strfmt.Date) bool {
-		return d1.String() == d2.String()
-	})
-	diff := cmp.Diff(got, want, dateComparer)
-
-	return diff, nil
 }

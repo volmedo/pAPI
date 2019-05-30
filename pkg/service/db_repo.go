@@ -1,0 +1,697 @@
+package service
+
+import (
+	"bytes"
+	"database/sql"
+	"database/sql/driver"
+	"encoding/csv"
+	"fmt"
+	"strings"
+
+	"github.com/go-openapi/strfmt"
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/lib/pq"
+
+	"github.com/volmedo/pAPI/pkg/models"
+)
+
+// Type amount mimics the composite type amount in the DB schema.
+// It is declared here so that it can implement driver.Valuer and sql.Scanner
+// interfaces, letting the driver to handle marshalling and unmarshalling
+// of the type in a more natural manner.
+// Other types are not mirrored here because they can be accesed directly by
+// their fields. However, ChargesInformation contains an array of
+// sender charges, which in turn is mapped as an amount[] in the DB.
+// Being an array, it is more maintainable and less error-prone to make type
+// amount implement the Valuer and Scanner interfaces and let the driver handle
+// the specifics of array syntax through pq.Array
+type amount struct {
+	amount   string
+	currency string
+}
+
+// Value implements driver.Valuer and allows the conversion of an
+// amount to a driver.Value
+func (a amount) Value() (driver.Value, error) {
+	return fmt.Sprintf("(%s,%s)", a.amount, a.currency), nil
+}
+
+// Scan implements sql.Scanner. It assigns a value from a db driver
+func (a *amount) Scan(raw interface{}) error {
+	var s string
+	switch v := raw.(type) {
+	case []byte:
+		s = string(v)
+	case string:
+		s = v
+	default:
+		return fmt.Errorf("Cannot sql.Scan() amount from: %#v", v)
+	}
+
+	// PostgreSQL syntax for composite types is "(field1, field2, ...)" and
+	// field values can be quoted. We will strip parentheses and get rid of
+	// single and double quotes and then split on commas
+	s = strings.Trim(s, "()")
+	s = strings.Replace(s, "\"", "", -1)
+	s = strings.Replace(s, "'", "", -1)
+	r := csv.NewReader(bytes.NewBuffer([]byte(s)))
+	fields, err := r.Read()
+	if err != nil {
+		return err
+	}
+	if len(fields) != 2 {
+		return fmt.Errorf("Expected 2 elements but got %d", len(fields))
+	}
+
+	a.amount = fields[0]
+	a.currency = fields[1]
+
+	return nil
+}
+
+// senderChargesToAmounts returns a slice of amount from a slice of SenderCharges
+func senderChargesToAmounts(charges []*models.ChargesInformationSenderChargesItems0) []amount {
+	amounts := make([]amount, 0)
+	for _, charge := range charges {
+		a := amount{amount: string(charge.Amount), currency: string(charge.Currency)}
+		amounts = append(amounts, a)
+	}
+
+	return amounts
+}
+
+// amountsToSenderCharges returns a slice of SenderCharges from the data of a slice of amounts
+func amountsToSenderCharges(amounts []amount) []*models.ChargesInformationSenderChargesItems0 {
+	senderCharges := make([]*models.ChargesInformationSenderChargesItems0, 0)
+	for _, amount := range amounts {
+		charge := models.ChargesInformationSenderChargesItems0{
+			Amount:   models.Amount(amount.amount),
+			Currency: models.Currency(amount.currency),
+		}
+		senderCharges = append(senderCharges, &charge)
+	}
+
+	return senderCharges
+}
+
+// DBConfig contains the parameters needed to connect to a DB
+type DBConfig struct {
+	Host           string
+	Port           int
+	User           string
+	Pass           string
+	Name           string
+	MigrationsPath string
+}
+
+// DBPaymentRepository stores a collection of payment resources using
+// an external database as data backend
+type DBPaymentRepository struct {
+	db *sql.DB
+}
+
+// NewDBPaymentRepository creates a new DBPaymentRepository and connects it with a DB
+// using the provided DBConfig
+func NewDBPaymentRepository(cfg *DBConfig) (*DBPaymentRepository, error) {
+	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+		cfg.Host, cfg.Port, cfg.User, cfg.Pass, cfg.Name)
+	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := db.Ping(); err != nil {
+		return nil, err
+	}
+
+	if err := migrateDB(db, cfg.Name, cfg.MigrationsPath); err != nil {
+		return nil, err
+	}
+
+	return &DBPaymentRepository{db: db}, nil
+}
+
+// migrateDB updates a DB instance to the latest version
+func migrateDB(db *sql.DB, dbName, migrationsPath string) error {
+	dbDriver, err := postgres.WithInstance(db, &postgres.Config{})
+	if err != nil {
+		return err
+	}
+
+	m, err := migrate.NewWithDatabaseInstance("file://"+migrationsPath, dbName, dbDriver)
+	if err != nil {
+		return err
+	}
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return err
+	}
+
+	return nil
+}
+
+// Close closes the underlying db instance and its associated resources
+func (dbpr *DBPaymentRepository) Close() error {
+	if dbpr.db != nil {
+		return dbpr.db.Close()
+	}
+
+	return nil
+}
+
+// Add adds a new payment resource to the repository
+//
+// Add returns an error if a payment with the same ID as the one
+// to be added already exists
+func (dbpr *DBPaymentRepository) Add(payment *models.Payment) error {
+	insertStmt := `
+	INSERT INTO payments (
+		id,
+		organisation,
+		version,
+		amount,
+		beneficiary_party.name,
+    	beneficiary_party.number,
+    	beneficiary_party.number_code,
+    	beneficiary_party.type,
+    	beneficiary_party.address,
+    	beneficiary_party.bank_id,
+    	beneficiary_party.bank_id_code,
+    	beneficiary_party.client_name,
+		charges_info.bearer_code,
+		charges_info.receiver_charges.amount,
+		charges_info.receiver_charges.currency,
+		charges_info.sender_charges,
+		currency,
+		debtor_party.name,
+    	debtor_party.number,
+    	debtor_party.number_code,
+    	debtor_party.type,
+    	debtor_party.address,
+    	debtor_party.bank_id,
+    	debtor_party.bank_id_code,
+    	debtor_party.client_name,
+		e2e_reference,
+		fx.contract_ref,
+		fx.rate,
+		fx.original_amount.amount,
+		fx.original_amount.currency,
+		numeric_reference,
+		payment_id,
+		payment_type,
+		processing_date,
+		purpose,
+		reference,
+		scheme,
+		scheme_payment_subtype,
+		scheme_payment_type,
+		sponsor_party.account_number,
+		sponsor_party.bank_id,
+		sponsor_party.bank_id_code
+	)
+	VALUES (
+		$1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+		$11, $12, $13, $14, $15, $16::amount[], $17, $18, $19, $20,
+		$21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
+		$31, $32, $33, $34, $35, $36, $37, $38, $39, $40,
+		$41, $42
+	)`
+
+	attrs := payment.Attributes
+	amounts := senderChargesToAmounts(attrs.ChargesInformation.SenderCharges)
+	_, err := dbpr.db.Exec(insertStmt,
+		payment.ID,                                       // id,
+		payment.OrganisationID,                           // organisation,
+		*payment.Version,                                 // version,
+		attrs.Amount,                                     // amount,
+		attrs.BeneficiaryParty.AccountName,               // beneficiary_party.name,
+		attrs.BeneficiaryParty.AccountNumber,             // beneficiary_party.number,
+		attrs.BeneficiaryParty.AccountNumberCode,         // beneficiary_party.number_code,
+		attrs.BeneficiaryParty.AccountType,               // beneficiary_party.type,
+		attrs.BeneficiaryParty.Address,                   // beneficiary_party.address ,
+		attrs.BeneficiaryParty.BankID,                    // beneficiary_party.bank_id,
+		attrs.BeneficiaryParty.BankIDCode,                // beneficiary_party.bank_id_code,
+		attrs.BeneficiaryParty.Name,                      // beneficiary_party.client_name,
+		attrs.ChargesInformation.BearerCode,              // charges_info.bearer_code,
+		attrs.ChargesInformation.ReceiverChargesAmount,   // charges_info.receiver_charges.amount,
+		attrs.ChargesInformation.ReceiverChargesCurrency, // charges_info.receiver_charges.currency,
+		pq.Array(amounts),                                // charges_info.sender_charges,
+		attrs.Currency,                                   // currency,
+		attrs.DebtorParty.AccountName,                    // debtor_party.name,
+		attrs.DebtorParty.AccountNumber,                  // debtor_party.number,
+		attrs.DebtorParty.AccountNumberCode,              // debtor_party.number_code,
+		attrs.DebtorParty.AccountType,                    // debtor_party.type,
+		attrs.DebtorParty.Address,                        // debtor_party.address ,
+		attrs.DebtorParty.BankID,                         // debtor_party.bank_id,
+		attrs.DebtorParty.BankIDCode,                     // debtor_party.bank_id_code,
+		attrs.DebtorParty.Name,                           // debtor_party.client_name,
+		attrs.EndToEndReference,                          // e2e_reference,
+		attrs.Fx.ContractReference,                       // fx.contract_ref,
+		attrs.Fx.ExchangeRate,                            // fx.rate,
+		attrs.Fx.OriginalAmount,                          // fx.original_amount.amount,
+		attrs.Fx.OriginalCurrency,                        // fx.original_amount.currency,
+		attrs.NumericReference,                           // numeric_reference,
+		attrs.PaymentID,                                  // payment_id,
+		attrs.PaymentType,                                // payment_type,
+		attrs.ProcessingDate,                             // processing_date,
+		attrs.PaymentPurpose,                             // purpose,
+		attrs.Reference,                                  // reference,
+		attrs.PaymentScheme,                              // scheme,
+		attrs.SchemePaymentSubType,                       // scheme_payment_subtype,
+		attrs.SchemePaymentType,                          // scheme_payment_type,
+		attrs.SponsorParty.AccountNumber,                 // sponsor_party.account_number,
+		attrs.SponsorParty.BankID,                        // sponsor_party.bank_id,
+		attrs.SponsorParty.BankIDCode,                    // sponsor_party.bank_id_code
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Delete deletes the payment resource associated to the given paymentID
+//
+// Delete returns an error if the paymentID is not present in the respository
+func (dbpr *DBPaymentRepository) Delete(paymentID strfmt.UUID) error {
+	deleteStmt := `DELETE FROM payments WHERE ID=$1`
+	res, err := dbpr.db.Exec(deleteStmt, paymentID.String())
+	if err != nil {
+		return err
+	}
+
+	count, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return fmt.Errorf("Payment with ID %s not found", paymentID)
+	}
+
+	return nil
+}
+
+// DeleteAll deletes every payment in the DB
+func (dbpr *DBPaymentRepository) DeleteAll() error {
+	_, err := dbpr.db.Exec(`DELETE FROM payments`)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Get returns the payment resource associated with the given paymentID
+//
+// Get returns an error if the paymentID does not exist in the collection
+func (dbpr *DBPaymentRepository) Get(paymentID strfmt.UUID) (*models.Payment, error) {
+	selectStmt := `
+	SELECT
+		id,
+		organisation,
+		version,
+		amount,
+		(beneficiary_party).name,
+    	(beneficiary_party).number,
+    	(beneficiary_party).number_code,
+    	(beneficiary_party).type,
+    	(beneficiary_party).address,
+    	(beneficiary_party).bank_id,
+    	(beneficiary_party).bank_id_code,
+    	(beneficiary_party).client_name,
+		(charges_info).bearer_code,
+		(charges_info).receiver_charges.amount,
+		(charges_info).receiver_charges.currency,
+		(charges_info).sender_charges,
+		currency,
+		(debtor_party).name,
+    	(debtor_party).number,
+    	(debtor_party).number_code,
+    	(debtor_party).type,
+    	(debtor_party).address,
+    	(debtor_party).bank_id,
+    	(debtor_party).bank_id_code,
+    	(debtor_party).client_name,
+		e2e_reference,
+		(fx).contract_ref,
+		(fx).rate,
+		(fx).original_amount.amount,
+		(fx).original_amount.currency,
+		numeric_reference,
+		payment_id,
+		payment_type,
+		processing_date,
+		purpose,
+		reference,
+		scheme,
+		scheme_payment_subtype,
+		scheme_payment_type,
+		(sponsor_party).account_number,
+		(sponsor_party).bank_id,
+		(sponsor_party).bank_id_code
+	FROM payments
+	WHERE id = $1`
+
+	payment := models.Payment{
+		ID:             new(strfmt.UUID),
+		OrganisationID: new(strfmt.UUID),
+		Type:           "Payment",
+		Version:        new(int64),
+	}
+	attrs := models.PaymentAttributes{
+		BeneficiaryParty:   &models.PaymentParty{},
+		ChargesInformation: &models.ChargesInformation{},
+		DebtorParty:        &models.PaymentParty{},
+		Fx:                 &models.PaymentAttributesFx{},
+		SponsorParty:       &models.PaymentAttributesSponsorParty{},
+	}
+	var amounts []amount
+
+	row := dbpr.db.QueryRow(selectStmt, paymentID.String())
+	err := row.Scan(
+		payment.ID,                                        // id,
+		payment.OrganisationID,                            // organisation,
+		payment.Version,                                   // version,
+		&attrs.Amount,                                     // amount,
+		&attrs.BeneficiaryParty.AccountName,               // beneficiary_party.name,
+		&attrs.BeneficiaryParty.AccountNumber,             // beneficiary_party.number,
+		&attrs.BeneficiaryParty.AccountNumberCode,         // beneficiary_party.number_code,
+		&attrs.BeneficiaryParty.AccountType,               // beneficiary_party.type,
+		&attrs.BeneficiaryParty.Address,                   // beneficiary_party.address ,
+		&attrs.BeneficiaryParty.BankID,                    // beneficiary_party.bank_id,
+		&attrs.BeneficiaryParty.BankIDCode,                // beneficiary_party.bank_id_code,
+		&attrs.BeneficiaryParty.Name,                      // beneficiary_party.client_name,
+		&attrs.ChargesInformation.BearerCode,              // charges_info.bearer_code,
+		&attrs.ChargesInformation.ReceiverChargesAmount,   // charges_info.receiver_charges.amount,
+		&attrs.ChargesInformation.ReceiverChargesCurrency, // charges_info.receiver_charges.currency,
+		pq.Array(&amounts),                                // charges_info.sender_charges,
+		&attrs.Currency,                                   // currency,
+		&attrs.DebtorParty.AccountName,                    // debtor_party.name,
+		&attrs.DebtorParty.AccountNumber,                  // debtor_party.number,
+		&attrs.DebtorParty.AccountNumberCode,              // debtor_party.number_code,
+		&attrs.DebtorParty.AccountType,                    // debtor_party.type,
+		&attrs.DebtorParty.Address,                        // debtor_party.address ,
+		&attrs.DebtorParty.BankID,                         // debtor_party.bank_id,
+		&attrs.DebtorParty.BankIDCode,                     // debtor_party.bank_id_code,
+		&attrs.DebtorParty.Name,                           // debtor_party.client_name,
+		&attrs.EndToEndReference,                          // e2e_reference,
+		&attrs.Fx.ContractReference,                       // fx.contract_ref,
+		&attrs.Fx.ExchangeRate,                            // fx.rate,
+		&attrs.Fx.OriginalAmount,                          // fx.original_amount.amount,
+		&attrs.Fx.OriginalCurrency,                        // fx.original_amount.currency,
+		&attrs.NumericReference,                           // numeric_reference,
+		&attrs.PaymentID,                                  // payment_id,
+		&attrs.PaymentType,                                // payment_type,
+		&attrs.ProcessingDate,                             // processing_date,
+		&attrs.PaymentPurpose,                             // purpose,
+		&attrs.Reference,                                  // reference,
+		&attrs.PaymentScheme,                              // scheme,
+		&attrs.SchemePaymentSubType,                       // scheme_payment_subtype,
+		&attrs.SchemePaymentType,                          // scheme_payment_type,
+		&attrs.SponsorParty.AccountNumber,                 // sponsor_party.account_number,
+		&attrs.SponsorParty.BankID,                        // sponsor_party.bank_id,
+		&attrs.SponsorParty.BankIDCode,                    // sponsor_party.bank_id_code
+	)
+
+	attrs.ChargesInformation.SenderCharges = amountsToSenderCharges(amounts)
+	payment.Attributes = &attrs
+
+	switch err {
+	case sql.ErrNoRows:
+		return nil, fmt.Errorf("Payment with ID %s not found", paymentID)
+	case nil:
+		return &payment, nil
+	default:
+		return nil, err
+	}
+}
+
+// List returns a slice of payment resources. An empty slice will be returned
+// if no payment exists.
+//
+// List implements basic pagination by means of offset and limit parameters.
+// List will return an error if offset is beyond the number of elements available.
+// Limit must be between 1 and 100.
+func (dbpr *DBPaymentRepository) List(offset, limit int64) ([]*models.Payment, error) {
+	// Check params before anything else
+	if limit <= 0 || limit > 100 {
+		return nil, fmt.Errorf("limit %d is outside the allowed range (0, 100]", limit)
+	}
+
+	numRecords := 0
+	row := dbpr.db.QueryRow(`SELECT COUNT(*) FROM payments`)
+	err := row.Scan(&numRecords)
+	if err != nil {
+		return nil, fmt.Errorf("Error calculating number of records: %v", err)
+	}
+	if offset >= int64(numRecords) {
+		return nil, fmt.Errorf("Requested item at %d but only %d items exist", offset, numRecords)
+	}
+
+	listStmt := `
+	SELECT
+		id,
+		organisation,
+		version,
+		amount,
+		(beneficiary_party).name,
+		(beneficiary_party).number,
+		(beneficiary_party).number_code,
+		(beneficiary_party).type,
+		(beneficiary_party).address,
+		(beneficiary_party).bank_id,
+		(beneficiary_party).bank_id_code,
+		(beneficiary_party).client_name,
+		(charges_info).bearer_code,
+		(charges_info).receiver_charges.amount,
+		(charges_info).receiver_charges.currency,
+		(charges_info).sender_charges,
+		currency,
+		(debtor_party).name,
+		(debtor_party).number,
+		(debtor_party).number_code,
+		(debtor_party).type,
+		(debtor_party).address,
+		(debtor_party).bank_id,
+		(debtor_party).bank_id_code,
+		(debtor_party).client_name,
+		e2e_reference,
+		(fx).contract_ref,
+		(fx).rate,
+		(fx).original_amount.amount,
+		(fx).original_amount.currency,
+		numeric_reference,
+		payment_id,
+		payment_type,
+		processing_date,
+		purpose,
+		reference,
+		scheme,
+		scheme_payment_subtype,
+		scheme_payment_type,
+		(sponsor_party).account_number,
+		(sponsor_party).bank_id,
+		(sponsor_party).bank_id_code
+	FROM payments
+	ORDER BY id ASC
+	LIMIT $1
+	OFFSET $2`
+
+	rows, err := dbpr.db.Query(listStmt, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	payments := make([]*models.Payment, 0, limit)
+	for rows.Next() {
+		payment := models.Payment{
+			ID:             new(strfmt.UUID),
+			OrganisationID: new(strfmt.UUID),
+			Type:           "Payment",
+			Version:        new(int64),
+		}
+		attrs := models.PaymentAttributes{
+			BeneficiaryParty:   &models.PaymentParty{},
+			ChargesInformation: &models.ChargesInformation{},
+			DebtorParty:        &models.PaymentParty{},
+			Fx:                 &models.PaymentAttributesFx{},
+			SponsorParty:       &models.PaymentAttributesSponsorParty{},
+		}
+		var amounts []amount
+
+		err := rows.Scan(
+			payment.ID,                                        // id,
+			payment.OrganisationID,                            // organisation,
+			payment.Version,                                   // version,
+			&attrs.Amount,                                     // amount,
+			&attrs.BeneficiaryParty.AccountName,               // beneficiary_party.name,
+			&attrs.BeneficiaryParty.AccountNumber,             // beneficiary_party.number,
+			&attrs.BeneficiaryParty.AccountNumberCode,         // beneficiary_party.number_code,
+			&attrs.BeneficiaryParty.AccountType,               // beneficiary_party.type,
+			&attrs.BeneficiaryParty.Address,                   // beneficiary_party.address ,
+			&attrs.BeneficiaryParty.BankID,                    // beneficiary_party.bank_id,
+			&attrs.BeneficiaryParty.BankIDCode,                // beneficiary_party.bank_id_code,
+			&attrs.BeneficiaryParty.Name,                      // beneficiary_party.client_name,
+			&attrs.ChargesInformation.BearerCode,              // charges_info.bearer_code,
+			&attrs.ChargesInformation.ReceiverChargesAmount,   // charges_info.receiver_charges.amount,
+			&attrs.ChargesInformation.ReceiverChargesCurrency, // charges_info.receiver_charges.currency,
+			pq.Array(&amounts),                                // charges_info.sender_charges,
+			&attrs.Currency,                                   // currency,
+			&attrs.DebtorParty.AccountName,                    // debtor_party.name,
+			&attrs.DebtorParty.AccountNumber,                  // debtor_party.number,
+			&attrs.DebtorParty.AccountNumberCode,              // debtor_party.number_code,
+			&attrs.DebtorParty.AccountType,                    // debtor_party.type,
+			&attrs.DebtorParty.Address,                        // debtor_party.address ,
+			&attrs.DebtorParty.BankID,                         // debtor_party.bank_id,
+			&attrs.DebtorParty.BankIDCode,                     // debtor_party.bank_id_code,
+			&attrs.DebtorParty.Name,                           // debtor_party.client_name,
+			&attrs.EndToEndReference,                          // e2e_reference,
+			&attrs.Fx.ContractReference,                       // fx.contract_ref,
+			&attrs.Fx.ExchangeRate,                            // fx.rate,
+			&attrs.Fx.OriginalAmount,                          // fx.original_amount.amount,
+			&attrs.Fx.OriginalCurrency,                        // fx.original_amount.currency,
+			&attrs.NumericReference,                           // numeric_reference,
+			&attrs.PaymentID,                                  // payment_id,
+			&attrs.PaymentType,                                // payment_type,
+			&attrs.ProcessingDate,                             // processing_date,
+			&attrs.PaymentPurpose,                             // purpose,
+			&attrs.Reference,                                  // reference,
+			&attrs.PaymentScheme,                              // scheme,
+			&attrs.SchemePaymentSubType,                       // scheme_payment_subtype,
+			&attrs.SchemePaymentType,                          // scheme_payment_type,
+			&attrs.SponsorParty.AccountNumber,                 // sponsor_party.account_number,
+			&attrs.SponsorParty.BankID,                        // sponsor_party.bank_id,
+			&attrs.SponsorParty.BankIDCode,                    // sponsor_party.bank_id_code
+		)
+
+		if err != nil {
+			return nil, fmt.Errorf("Error retrieving payments: %v", err)
+		}
+
+		attrs.ChargesInformation.SenderCharges = amountsToSenderCharges(amounts)
+		payment.Attributes = &attrs
+		payments = append(payments, &payment)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("Error retrieving payments: %v", err)
+	}
+
+	return payments, nil
+}
+
+// Update updates the details associated with the given paymentID. The current
+// implementation is a basic one that doesn't support updating fields selectively.
+//
+// Update returns an error if the paymentID does not exist in the collection
+func (dbpr *DBPaymentRepository) Update(paymentID strfmt.UUID, payment *models.Payment) error {
+	updateStmt := `
+	UPDATE payments
+	SET
+		organisation = $2,
+		version = $3,
+		amount = $4,
+		beneficiary_party.name = $5,
+    	beneficiary_party.number = $6,
+    	beneficiary_party.number_code = $7,
+    	beneficiary_party.type = $8,
+    	beneficiary_party.address = $9,
+    	beneficiary_party.bank_id = $10,
+    	beneficiary_party.bank_id_code = $11,
+    	beneficiary_party.client_name = $12,
+		charges_info.bearer_code = $13,
+		charges_info.receiver_charges.amount = $14,
+		charges_info.receiver_charges.currency = $15,
+		charges_info.sender_charges = $16,
+		currency = $17,
+		debtor_party.name = $18,
+    	debtor_party.number = $19,
+    	debtor_party.number_code = $20,
+    	debtor_party.type = $21,
+    	debtor_party.address = $22,
+    	debtor_party.bank_id = $23,
+    	debtor_party.bank_id_code = $24,
+    	debtor_party.client_name = $25,
+		e2e_reference = $26,
+		fx.contract_ref = $27,
+		fx.rate = $28,
+		fx.original_amount.amount = $29,
+		fx.original_amount.currency = $30,
+		numeric_reference = $31,
+		payment_id = $32,
+		payment_type = $33,
+		processing_date = $34,
+		purpose = $35,
+		reference = $36,
+		scheme = $37,
+		scheme_payment_subtype = $38,
+		scheme_payment_type = $39,
+		sponsor_party.account_number = $40,
+		sponsor_party.bank_id = $41,
+		sponsor_party.bank_id_code = $42
+	WHERE id = $1`
+
+	attrs := payment.Attributes
+	amounts := senderChargesToAmounts(attrs.ChargesInformation.SenderCharges)
+	res, err := dbpr.db.Exec(updateStmt,
+		payment.ID,                                       // id,
+		payment.OrganisationID,                           // organisation,
+		*payment.Version,                                 // version,
+		attrs.Amount,                                     // amount,
+		attrs.BeneficiaryParty.AccountName,               // beneficiary_party.name,
+		attrs.BeneficiaryParty.AccountNumber,             // beneficiary_party.number,
+		attrs.BeneficiaryParty.AccountNumberCode,         // beneficiary_party.number_code,
+		attrs.BeneficiaryParty.AccountType,               // beneficiary_party.type,
+		attrs.BeneficiaryParty.Address,                   // beneficiary_party.address ,
+		attrs.BeneficiaryParty.BankID,                    // beneficiary_party.bank_id,
+		attrs.BeneficiaryParty.BankIDCode,                // beneficiary_party.bank_id_code,
+		attrs.BeneficiaryParty.Name,                      // beneficiary_party.client_name,
+		attrs.ChargesInformation.BearerCode,              // charges_info.bearer_code,
+		attrs.ChargesInformation.ReceiverChargesAmount,   // charges_info.receiver_charges.amount,
+		attrs.ChargesInformation.ReceiverChargesCurrency, // charges_info.receiver_charges.currency,
+		pq.Array(amounts),                                // charges_info.sender_charges,
+		attrs.Currency,                                   // currency,
+		attrs.DebtorParty.AccountName,                    // debtor_party.name,
+		attrs.DebtorParty.AccountNumber,                  // debtor_party.number,
+		attrs.DebtorParty.AccountNumberCode,              // debtor_party.number_code,
+		attrs.DebtorParty.AccountType,                    // debtor_party.type,
+		attrs.DebtorParty.Address,                        // debtor_party.address ,
+		attrs.DebtorParty.BankID,                         // debtor_party.bank_id,
+		attrs.DebtorParty.BankIDCode,                     // debtor_party.bank_id_code,
+		attrs.DebtorParty.Name,                           // debtor_party.client_name,
+		attrs.EndToEndReference,                          // e2e_reference,
+		attrs.Fx.ContractReference,                       // fx.contract_ref,
+		attrs.Fx.ExchangeRate,                            // fx.rate,
+		attrs.Fx.OriginalAmount,                          // fx.original_amount.amount,
+		attrs.Fx.OriginalCurrency,                        // fx.original_amount.currency,
+		attrs.NumericReference,                           // numeric_reference,
+		attrs.PaymentID,                                  // payment_id,
+		attrs.PaymentType,                                // payment_type,
+		attrs.ProcessingDate,                             // processing_date,
+		attrs.PaymentPurpose,                             // purpose,
+		attrs.Reference,                                  // reference,
+		attrs.PaymentScheme,                              // scheme,
+		attrs.SchemePaymentSubType,                       // scheme_payment_subtype,
+		attrs.SchemePaymentType,                          // scheme_payment_type,
+		attrs.SponsorParty.AccountNumber,                 // sponsor_party.account_number,
+		attrs.SponsorParty.BankID,                        // sponsor_party.bank_id,
+		attrs.SponsorParty.BankIDCode,                    // sponsor_party.bank_id_code
+	)
+	if err != nil {
+		return err
+	}
+
+	count, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return fmt.Errorf("Payment with ID %s not found", paymentID)
+	}
+
+	return nil
+}
