@@ -39,6 +39,13 @@ func (o *UpdatePaymentReader) ReadResponse(response runtime.ClientResponse, cons
 		}
 		return nil, result
 
+	case 500:
+		result := NewUpdatePaymentInternalServerError()
+		if err := result.readResponse(response, consumer, o.formats); err != nil {
+			return nil, err
+		}
+		return nil, result
+
 	default:
 		return nil, runtime.NewAPIError("unknown error", response, response.Code())
 	}
@@ -91,6 +98,35 @@ func (o *UpdatePaymentNotFound) Error() string {
 }
 
 func (o *UpdatePaymentNotFound) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
+
+	o.Payload = new(models.APIError)
+
+	// response payload
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
+		return err
+	}
+
+	return nil
+}
+
+// NewUpdatePaymentInternalServerError creates a UpdatePaymentInternalServerError with default headers values
+func NewUpdatePaymentInternalServerError() *UpdatePaymentInternalServerError {
+	return &UpdatePaymentInternalServerError{}
+}
+
+/*UpdatePaymentInternalServerError handles this case with default header values.
+
+Internal Server Error
+*/
+type UpdatePaymentInternalServerError struct {
+	Payload *models.APIError
+}
+
+func (o *UpdatePaymentInternalServerError) Error() string {
+	return fmt.Sprintf("[PUT /payments/{id}][%d] updatePaymentInternalServerError  %+v", 500, o.Payload)
+}
+
+func (o *UpdatePaymentInternalServerError) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	o.Payload = new(models.APIError)
 

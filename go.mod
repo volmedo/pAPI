@@ -3,6 +3,7 @@ module github.com/volmedo/pAPI
 go 1.12
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.3.3
 	github.com/DATA-DOG/godog v0.7.13
 	github.com/go-openapi/errors v0.19.0
 	github.com/go-openapi/loads v0.19.0

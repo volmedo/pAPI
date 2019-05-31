@@ -100,3 +100,47 @@ func (o *CreatePaymentConflict) WriteResponse(rw http.ResponseWriter, producer r
 		}
 	}
 }
+
+// CreatePaymentInternalServerErrorCode is the HTTP code returned for type CreatePaymentInternalServerError
+const CreatePaymentInternalServerErrorCode int = 500
+
+/*CreatePaymentInternalServerError Internal Server Error
+
+swagger:response createPaymentInternalServerError
+*/
+type CreatePaymentInternalServerError struct {
+
+	/*
+	  In: Body
+	*/
+	Payload *models.APIError `json:"body,omitempty"`
+}
+
+// NewCreatePaymentInternalServerError creates CreatePaymentInternalServerError with default headers values
+func NewCreatePaymentInternalServerError() *CreatePaymentInternalServerError {
+
+	return &CreatePaymentInternalServerError{}
+}
+
+// WithPayload adds the payload to the create payment internal server error response
+func (o *CreatePaymentInternalServerError) WithPayload(payload *models.APIError) *CreatePaymentInternalServerError {
+	o.Payload = payload
+	return o
+}
+
+// SetPayload sets the payload to the create payment internal server error response
+func (o *CreatePaymentInternalServerError) SetPayload(payload *models.APIError) {
+	o.Payload = payload
+}
+
+// WriteResponse to the client
+func (o *CreatePaymentInternalServerError) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+
+	rw.WriteHeader(500)
+	if o.Payload != nil {
+		payload := o.Payload
+		if err := producer.Produce(rw, payload); err != nil {
+			panic(err) // let the recovery middleware deal with this
+		}
+	}
+}

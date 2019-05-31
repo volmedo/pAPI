@@ -19,7 +19,7 @@ GOLANGCI_LINT = docker run --rm -v "$(PWD)":"$(PWD)" -w "$(PWD)" golangci/golang
 POSTGRES_VER ?= 11.3-alpine
 CONTAINER_NAME = db
 DB_HOST ?= localhost
-DB_PORT ?= 5432
+DB_PORT ?= 54321
 DB_USER ?= papi_user
 DB_PASS ?= papi_test_pass
 DB_NAME ?= papi_db
@@ -27,7 +27,7 @@ POSTGRES_START = docker run --name $(CONTAINER_NAME) \
 					-e POSTGRES_USER=$(DB_USER) \
 					-e POSTGRES_PASSWORD=$(DB_PASS) \
 					-e POSTGRES_DB=$(DB_NAME) \
-					-p 5432:$(DB_PORT) \
+					-p $(DB_PORT):5432 \
 					-d postgres:$(POSTGRES_VER)
 POSTGRES_WAIT = until docker run --rm --link $(CONTAINER_NAME):pg postgres:$(POSTGRES_VER) pg_isready -U postgres -h pg; do sleep 1; done
 POSTGRES_STOP = docker stop $(CONTAINER_NAME) && docker rm $(CONTAINER_NAME)

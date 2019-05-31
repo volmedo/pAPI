@@ -11,39 +11,6 @@ import (
 	"github.com/volmedo/pAPI/pkg/restapi/operations/payments"
 )
 
-// PaymentRepository stores a collection of payment resources that
-// is safe for concurrent use
-type PaymentRepository interface {
-	// Add adds a new payment resource to the repository
-	//
-	// Add returns an error if a payment with the same ID as the one
-	// to be added already exists
-	Add(payment *models.Payment) error
-
-	// Delete deletes the payment resource associated to the given paymentID
-	//
-	// Delete returns an error if the paymentID is not present in the respository
-	Delete(paymentID strfmt.UUID) error
-
-	// Get returns the payment resource associated with the given paymentID
-	//
-	// Get returns an error if the paymentID does not exist in the collection
-	Get(paymentID strfmt.UUID) (*models.Payment, error)
-
-	// List returns a slice of payment resources. An empty slice will be returned
-	// if no payment exists.
-	//
-	// List implements basic pagination by means of offset and limit parameters.
-	// List will return an error if offset is beyond the number of elements available.
-	// A limit of 0 will return all elements available. Both parameters default to 0.
-	List(offset, limit int64) ([]*models.Payment, error)
-
-	// Update updates the details associated with the given paymentID
-	//
-	// Update returns an error if the paymentID does not exist in the collection
-	Update(paymentID strfmt.UUID, payment *models.Payment) error
-}
-
 // PaymentsService implements the business logic needed to fulfill the API's requirements
 type PaymentsService struct {
 	// Repo is a repository for payments
@@ -56,7 +23,11 @@ func (papi *PaymentsService) CreatePayment(ctx context.Context, params payments.
 	err := papi.Repo.Add(payment)
 	if err != nil {
 		apiError := newAPIError(err.Error())
-		return payments.NewCreatePaymentConflict().WithPayload(apiError)
+		if _, ok := err.(ErrConflict); ok {
+			return payments.NewCreatePaymentConflict().WithPayload(apiError)
+		}
+
+		return payments.NewCreatePaymentInternalServerError().WithPayload(apiError)
 	}
 
 	respData := payment
@@ -70,7 +41,11 @@ func (papi *PaymentsService) DeletePayment(ctx context.Context, params payments.
 	err := papi.Repo.Delete(paymentID)
 	if err != nil {
 		apiError := newAPIError(err.Error())
-		return payments.NewDeletePaymentNotFound().WithPayload(apiError)
+		if _, ok := err.(ErrNoResults); ok {
+			return payments.NewDeletePaymentNotFound().WithPayload(apiError)
+		}
+
+		return payments.NewDeletePaymentInternalServerError().WithPayload(apiError)
 	}
 
 	return payments.NewDeletePaymentNoContent()
@@ -82,7 +57,11 @@ func (papi *PaymentsService) GetPayment(ctx context.Context, params payments.Get
 	payment, err := papi.Repo.Get(*paymentID)
 	if err != nil {
 		apiError := newAPIError(err.Error())
-		return payments.NewGetPaymentNotFound().WithPayload(apiError)
+		if _, ok := err.(ErrNoResults); ok {
+			return payments.NewGetPaymentNotFound().WithPayload(apiError)
+		}
+
+		return payments.NewGetPaymentInternalServerError().WithPayload(apiError)
 	}
 
 	resp := &models.PaymentDetailsResponse{Data: payment}
@@ -100,7 +79,11 @@ func (papi *PaymentsService) ListPayments(ctx context.Context, params payments.L
 	list, err := papi.Repo.List(offset, limit)
 	if err != nil {
 		apiError := newAPIError(err.Error())
-		return payments.NewListPaymentsBadRequest().WithPayload(apiError)
+		if _, ok := err.(ErrBadOffsetLimit); ok {
+			return payments.NewListPaymentsBadRequest().WithPayload(apiError)
+		}
+
+		return payments.NewListPaymentsInternalServerError().WithPayload(apiError)
 	}
 	resp := &models.PaymentDetailsListResponse{Data: list}
 	return payments.NewListPaymentsOK().WithPayload(resp)
@@ -113,7 +96,11 @@ func (papi *PaymentsService) UpdatePayment(ctx context.Context, params payments.
 	err := papi.Repo.Update(*paymentID, payment)
 	if err != nil {
 		apiError := newAPIError(err.Error())
-		return payments.NewUpdatePaymentNotFound().WithPayload(apiError)
+		if _, ok := err.(ErrNoResults); ok {
+			return payments.NewUpdatePaymentNotFound().WithPayload(apiError)
+		}
+
+		return payments.NewUpdatePaymentInternalServerError().WithPayload(apiError)
 	}
 
 	resp := &models.PaymentUpdateResponse{Data: payment}

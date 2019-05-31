@@ -73,6 +73,12 @@ func init() {
             "schema": {
               "$ref": "#/definitions/ApiError"
             }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
           }
         }
       },
@@ -100,6 +106,12 @@ func init() {
           },
           "409": {
             "description": "A payment with the given ID already exists",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
             "schema": {
               "$ref": "#/definitions/ApiError"
             }
@@ -133,6 +145,12 @@ func init() {
           },
           "404": {
             "description": "Payment Not Found",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
             "schema": {
               "$ref": "#/definitions/ApiError"
             }
@@ -175,6 +193,12 @@ func init() {
             "schema": {
               "$ref": "#/definitions/ApiError"
             }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
           }
         }
       },
@@ -200,6 +224,12 @@ func init() {
           },
           "404": {
             "description": "Payment Not Found",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
             "schema": {
               "$ref": "#/definitions/ApiError"
             }
@@ -667,6 +697,12 @@ func init() {
             "schema": {
               "$ref": "#/definitions/ApiError"
             }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
           }
         }
       },
@@ -694,6 +730,12 @@ func init() {
           },
           "409": {
             "description": "A payment with the given ID already exists",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
             "schema": {
               "$ref": "#/definitions/ApiError"
             }
@@ -727,6 +769,12 @@ func init() {
           },
           "404": {
             "description": "Payment Not Found",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
             "schema": {
               "$ref": "#/definitions/ApiError"
             }
@@ -769,6 +817,12 @@ func init() {
             "schema": {
               "$ref": "#/definitions/ApiError"
             }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
           }
         }
       },
@@ -794,6 +848,12 @@ func init() {
           },
           "404": {
             "description": "Payment Not Found",
+            "schema": {
+              "$ref": "#/definitions/ApiError"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
             "schema": {
               "$ref": "#/definitions/ApiError"
             }

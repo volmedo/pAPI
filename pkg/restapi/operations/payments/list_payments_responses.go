@@ -100,3 +100,47 @@ func (o *ListPaymentsBadRequest) WriteResponse(rw http.ResponseWriter, producer 
 		}
 	}
 }
+
+// ListPaymentsInternalServerErrorCode is the HTTP code returned for type ListPaymentsInternalServerError
+const ListPaymentsInternalServerErrorCode int = 500
+
+/*ListPaymentsInternalServerError Internal Server Error
+
+swagger:response listPaymentsInternalServerError
+*/
+type ListPaymentsInternalServerError struct {
+
+	/*
+	  In: Body
+	*/
+	Payload *models.APIError `json:"body,omitempty"`
+}
+
+// NewListPaymentsInternalServerError creates ListPaymentsInternalServerError with default headers values
+func NewListPaymentsInternalServerError() *ListPaymentsInternalServerError {
+
+	return &ListPaymentsInternalServerError{}
+}
+
+// WithPayload adds the payload to the list payments internal server error response
+func (o *ListPaymentsInternalServerError) WithPayload(payload *models.APIError) *ListPaymentsInternalServerError {
+	o.Payload = payload
+	return o
+}
+
+// SetPayload sets the payload to the list payments internal server error response
+func (o *ListPaymentsInternalServerError) SetPayload(payload *models.APIError) {
+	o.Payload = payload
+}
+
+// WriteResponse to the client
+func (o *ListPaymentsInternalServerError) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+
+	rw.WriteHeader(500)
+	if o.Payload != nil {
+		payload := o.Payload
+		if err := producer.Produce(rw, payload); err != nil {
+			panic(err) // let the recovery middleware deal with this
+		}
+	}
+}

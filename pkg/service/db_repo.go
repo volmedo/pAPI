@@ -32,13 +32,13 @@ type amount struct {
 	currency string
 }
 
-// Value implements driver.Valuer and allows the conversion of an
+// Value satisfies driver.Valuer and allows the conversion of an
 // amount to a driver.Value
 func (a amount) Value() (driver.Value, error) {
 	return fmt.Sprintf("(%s,%s)", a.amount, a.currency), nil
 }
 
-// Scan implements sql.Scanner. It assigns a value from a db driver
+// Scan makes amount implement sql.Scanner. It assigns a value from a db driver
 func (a *amount) Scan(raw interface{}) error {
 	var s string
 	switch v := raw.(type) {
@@ -96,44 +96,29 @@ func amountsToSenderCharges(amounts []amount) []*models.ChargesInformationSender
 	return senderCharges
 }
 
-// DBConfig contains the parameters needed to connect to a DB
-type DBConfig struct {
-	Host           string
-	Port           int
-	User           string
-	Pass           string
-	Name           string
-	MigrationsPath string
-}
-
 // DBPaymentRepository stores a collection of payment resources using
 // an external database as data backend
 type DBPaymentRepository struct {
 	db *sql.DB
 }
 
-// NewDBPaymentRepository creates a new DBPaymentRepository and connects it with a DB
-// using the provided DBConfig
-func NewDBPaymentRepository(cfg *DBConfig) (*DBPaymentRepository, error) {
-	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		cfg.Host, cfg.Port, cfg.User, cfg.Pass, cfg.Name)
-	db, err := sql.Open("postgres", connStr)
-	if err != nil {
-		return nil, err
-	}
-
+// NewDBPaymentRepository creates a new DBPaymentRepository that uses a previously
+// configured sql.DB to connect to the DB
+func NewDBPaymentRepository(db *sql.DB, dbName, migrationsPath string) (*DBPaymentRepository, error) {
 	if err := db.Ping(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("db: pinging the DB didn't work: %v", err)
 	}
 
-	if err := migrateDB(db, cfg.Name, cfg.MigrationsPath); err != nil {
-		return nil, err
+	if dbName != "" && migrationsPath != "" {
+		if err := migrateDB(db, dbName, migrationsPath); err != nil {
+			return nil, fmt.Errorf("db: migration failed: %v", err)
+		}
 	}
 
 	return &DBPaymentRepository{db: db}, nil
 }
 
-// migrateDB updates a DB instance to the latest version
+// migrateDB updates the DB's schema to the latest version
 func migrateDB(db *sql.DB, dbName, migrationsPath string) error {
 	dbDriver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {
@@ -152,10 +137,12 @@ func migrateDB(db *sql.DB, dbName, migrationsPath string) error {
 	return nil
 }
 
-// Close closes the underlying db instance and its associated resources
+// Close closes the underlying db instance and frees its associated resources
 func (dbpr *DBPaymentRepository) Close() error {
 	if dbpr.db != nil {
-		return dbpr.db.Close()
+		if err := dbpr.db.Close(); err != nil {
+			return fmt.Errorf("db: error closing underlying DB connection: %v", err)
+		}
 	}
 
 	return nil
@@ -267,7 +254,11 @@ func (dbpr *DBPaymentRepository) Add(payment *models.Payment) error {
 	)
 
 	if err != nil {
-		return err
+		if e, ok := err.(*pq.Error); ok && e.Code == "23505" {
+			return newErrConflict(fmt.Sprintf("db: a payment with ID %s already exists", *payment.ID))
+		}
+
+		return fmt.Errorf("db: error executing insert: %v", err)
 	}
 
 	return nil
@@ -277,18 +268,18 @@ func (dbpr *DBPaymentRepository) Add(payment *models.Payment) error {
 //
 // Delete returns an error if the paymentID is not present in the respository
 func (dbpr *DBPaymentRepository) Delete(paymentID strfmt.UUID) error {
-	deleteStmt := `DELETE FROM payments WHERE ID=$1`
+	deleteStmt := `DELETE FROM payments WHERE id = $1`
 	res, err := dbpr.db.Exec(deleteStmt, paymentID.String())
 	if err != nil {
-		return err
+		return fmt.Errorf("db: error executing delete: %v", err)
 	}
 
 	count, err := res.RowsAffected()
 	if err != nil {
-		return err
+		return fmt.Errorf("db: error getting rows affected by delete: %v", err)
 	}
 	if count == 0 {
-		return fmt.Errorf("Payment with ID %s not found", paymentID)
+		return newErrNoResults(fmt.Sprintf("db: payment with ID %s not found", paymentID))
 	}
 
 	return nil
@@ -298,7 +289,7 @@ func (dbpr *DBPaymentRepository) Delete(paymentID strfmt.UUID) error {
 func (dbpr *DBPaymentRepository) DeleteAll() error {
 	_, err := dbpr.db.Exec(`DELETE FROM payments`)
 	if err != nil {
-		return err
+		return fmt.Errorf("db: error executing delete: %v", err)
 	}
 
 	return nil
@@ -419,14 +410,15 @@ func (dbpr *DBPaymentRepository) Get(paymentID strfmt.UUID) (*models.Payment, er
 	attrs.ChargesInformation.SenderCharges = amountsToSenderCharges(amounts)
 	payment.Attributes = &attrs
 
-	switch err {
-	case sql.ErrNoRows:
-		return nil, fmt.Errorf("Payment with ID %s not found", paymentID)
-	case nil:
-		return &payment, nil
-	default:
-		return nil, err
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, newErrNoResults(fmt.Sprintf("db: payment with ID %s not found", paymentID))
+		}
+
+		return nil, fmt.Errorf("db: error executing select: %v", err)
 	}
+
+	return &payment, nil
 }
 
 // List returns a slice of payment resources. An empty slice will be returned
@@ -438,17 +430,21 @@ func (dbpr *DBPaymentRepository) Get(paymentID strfmt.UUID) (*models.Payment, er
 func (dbpr *DBPaymentRepository) List(offset, limit int64) ([]*models.Payment, error) {
 	// Check params before anything else
 	if limit <= 0 || limit > 100 {
-		return nil, fmt.Errorf("limit %d is outside the allowed range (0, 100]", limit)
+		return nil, newErrBadOffsetLimit(fmt.Sprintf("db: list limit %d is outside allowed range (0, 100]", limit))
+	}
+
+	if offset < 0 {
+		return nil, newErrBadOffsetLimit(fmt.Sprintf("db: list offset %d negative", offset))
 	}
 
 	numRecords := 0
 	row := dbpr.db.QueryRow(`SELECT COUNT(*) FROM payments`)
 	err := row.Scan(&numRecords)
 	if err != nil {
-		return nil, fmt.Errorf("Error calculating number of records: %v", err)
+		return nil, fmt.Errorf("db: error counting records: %v", err)
 	}
 	if offset >= int64(numRecords) {
-		return nil, fmt.Errorf("Requested item at %d but only %d items exist", offset, numRecords)
+		return nil, newErrBadOffsetLimit(fmt.Sprintf("db: list offset is %d but only %d records exist", offset, numRecords))
 	}
 
 	listStmt := `
@@ -502,7 +498,7 @@ func (dbpr *DBPaymentRepository) List(offset, limit int64) ([]*models.Payment, e
 
 	rows, err := dbpr.db.Query(listStmt, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("db: error executing list query: %v", err)
 	}
 	defer rows.Close()
 
@@ -569,7 +565,7 @@ func (dbpr *DBPaymentRepository) List(offset, limit int64) ([]*models.Payment, e
 		)
 
 		if err != nil {
-			return nil, fmt.Errorf("Error retrieving payments: %v", err)
+			return nil, fmt.Errorf("db: error scanning row: %v", err)
 		}
 
 		attrs.ChargesInformation.SenderCharges = amountsToSenderCharges(amounts)
@@ -578,7 +574,7 @@ func (dbpr *DBPaymentRepository) List(offset, limit int64) ([]*models.Payment, e
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("Error retrieving payments: %v", err)
+		return nil, fmt.Errorf("db: error scanning rows: %v", err)
 	}
 
 	return payments, nil
@@ -682,15 +678,15 @@ func (dbpr *DBPaymentRepository) Update(paymentID strfmt.UUID, payment *models.P
 		attrs.SponsorParty.BankIDCode,                    // sponsor_party.bank_id_code
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("db: error executing update: %v", err)
 	}
 
 	count, err := res.RowsAffected()
 	if err != nil {
-		return err
+		return fmt.Errorf("db: error getting rows affected by update: %v", err)
 	}
 	if count == 0 {
-		return fmt.Errorf("Payment with ID %s not found", paymentID)
+		return newErrNoResults(fmt.Sprintf("db: payment with ID %s not found", paymentID))
 	}
 
 	return nil
