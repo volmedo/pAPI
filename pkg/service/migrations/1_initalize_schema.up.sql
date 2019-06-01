@@ -44,11 +44,11 @@ CREATE TYPE fx AS (
 );
 
 CREATE TYPE scheme AS ENUM (
-    'BACS', 
-    'CHAPS', 
-    'FPS', 
-    'SEPA-CT', 
-    'SEPAINSTANT', 
+    'BACS',
+    'CHAPS',
+    'FPS',
+    'SEPA-CT',
+    'SEPAINSTANT',
     'SWIFT'
 );
 
