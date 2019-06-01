@@ -96,6 +96,38 @@ func amountsToSenderCharges(amounts []amount) []*models.ChargesInformationSender
 	return senderCharges
 }
 
+// DBConfig contains the parameters needed to connect to a DB
+type DBConfig struct {
+	// Address of the server that hosts the DB
+	Host string
+
+	// Port where the DB server is listening for connections
+	Port int
+
+	// User to use when accessing the DB
+	User string
+
+	// Password to use when accessing the DB
+	Pass string
+
+	// Name of the DB to connect to
+	Name string
+
+	// Path to the folder that contains the migration files
+	MigrationsPath string
+}
+
+// NewDB initializes a new DB connection object using the configuration paraemters provided
+func NewDB(cfg *DBConfig) (*sql.DB, error) {
+	if cfg.Host == "" || cfg.Port == 0 || cfg.User == "" || cfg.Name == "" {
+		return nil, fmt.Errorf("Missing required parameters in config: %v", cfg)
+	}
+
+	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+		cfg.Host, cfg.Port, cfg.User, cfg.Pass, cfg.Name)
+	return sql.Open("postgres", connStr)
+}
+
 // DBPaymentRepository stores a collection of payment resources using
 // an external database as data backend
 type DBPaymentRepository struct {

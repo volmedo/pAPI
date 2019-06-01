@@ -4,7 +4,6 @@ package service_test
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -130,8 +129,15 @@ func TestMain(m *testing.M) {
 	flag.Parse()
 
 	// Setup DB
-	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", dbHost, dbPort, dbUser, dbPass, dbName)
-	db, err := sql.Open("postgres", connStr)
+	dbConf := &service.DBConfig{
+		Host:           dbHost,
+		Port:           dbPort,
+		User:           dbUser,
+		Pass:           dbPass,
+		Name:           dbName,
+		MigrationsPath: migrationsPath,
+	}
+	db, err := service.NewDB(dbConf)
 	if err != nil {
 		panic(fmt.Sprintf("Unable to configure DB connection: %v", err))
 	}

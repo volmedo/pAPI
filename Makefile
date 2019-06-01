@@ -74,17 +74,27 @@ build: ./$(CMD)/server/main.go
 	GOOS=$(TARGET_OS) GOARCH=$(TARGET_ARCH) $(GO) build -o $(SRV_BIN_NAME) ./$(CMD)/server/main.go
 
 test.e2e.local:
-	$(GO) build -o testsrv ./$(CMD)/server/main.go ;\
-	./testsrv -port=8080 & \
+	$(GO) build -o testsrv ./$(CMD)/server/main.go
+	$(POSTGRES_START)
+	$(POSTGRES_WAIT)
+	./testsrv \
+		-port=8080 \
+		-dbhost=$(DB_HOST) \
+		-dbport=$(DB_PORT) \
+		-dbuser=$(DB_USER) \
+		-dbpass=$(DB_PASS) \
+		-dbname=$(DB_NAME) \
+		-migrations=./$(PKG)/service/migrations & \
 	SERVER_PID=$$! ;\
 	$(GO) test -v -race ./$(E2E) -host=localhost -port=8080 ;\
 	kill $$SERVER_PID ;\
 	rm testsrv
+	$(POSTGRES_STOP)
 
 test.e2e:
 	$(TERRAFORM) output > tf.out ;\
-	HOST=$$(awk '/host-ip/{print $$NF}' tf.out) ;\
-	PORT=$$(awk '/server-port/{print $$NF}' tf.out) ;\
+	HOST=$$(awk '/srv-ip/{print $$NF}' tf.out) ;\
+	PORT=$$(awk '/srv-port/{print $$NF}' tf.out) ;\
 	if [ -z "$$HOST" ] || [ -z "$$PORT" ]; then \
 		echo "Couldn't retrieve current host address or port. Are you sure the infrastructure is correctly deployed?" ;\
 	else \
@@ -103,16 +113,40 @@ terraform.chkfmt:
 	$(TERRAFORM) fmt -check=true
 
 terraform.validate:
-	$(TERRAFORM) validate -var "srv-bin-path=$(PWD)/$(SRV_BIN_NAME)" -var "ssh-key-path=$(TF_SSH_KEY_PATH)"
+	$(TERRAFORM) validate \
+		-var "srv-bin-path=$(PWD)/$(SRV_BIN_NAME)" \
+		-var "ssh-key-path=$(TF_SSH_KEY_PATH)" \
+		-var "db-name=$(DB_NAME)" \
+		-var "db-port=$(DB_PORT)" \
+		-var "db-user=$(DB_USER)" \
+		-var "db-pass=$(DB_PASS)" \
+		-var "db-migrations-path=$(PWD)/$(PKG)/service/migrations"
 
 terraform.apply:
-	$(TERRAFORM) apply -var "srv-bin-path=$(PWD)/$(SRV_BIN_NAME)" -var "ssh-key-path=$(TF_SSH_KEY_PATH)" -input=false -auto-approve
+	$(TERRAFORM) apply \
+		-var "srv-bin-path=$(PWD)/$(SRV_BIN_NAME)" \
+		-var "ssh-key-path=$(TF_SSH_KEY_PATH)" \
+		-var "db-name=$(DB_NAME)" \
+		-var "db-port=$(DB_PORT)" \
+		-var "db-user=$(DB_USER)" \
+		-var "db-pass=$(DB_PASS)" \
+		-var "db-migrations-path=$(PWD)/$(PKG)/service/migrations" \
+		-input=false \
+		-auto-approve
 
 terraform.output:
 	$(TERRAFORM) output
 
 terraform.destroy:
-	$(TERRAFORM) destroy -var "srv-bin-path=$(PWD)/$(SRV_BIN_NAME)" -var "ssh-key-path=$(TF_SSH_KEY_PATH)" -auto-approve
+	$(TERRAFORM) destroy \
+		-var "srv-bin-path=$(PWD)/$(SRV_BIN_NAME)" \
+		-var "ssh-key-path=$(TF_SSH_KEY_PATH)" \
+		-var "db-name=$(DB_NAME)" \
+		-var "db-port=$(DB_PORT)" \
+		-var "db-user=$(DB_USER)" \
+		-var "db-pass=$(DB_PASS)" \
+		-var "db-migrations-path=$(PWD)/$(PKG)/service/migrations" \
+		-auto-approve
 
 clean:
 	rm -f "$(PWD)/$(SRV_BIN_NAME)"
