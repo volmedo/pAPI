@@ -46,11 +46,11 @@ The cloud provider I used in this project is [AWS](https://aws.amazon.com/), but
 
 ## Amazon Web Services
 
-Amazon offers a wide (wider, in fact) range of services and products as part of its cloud infrastructure offering. They provide different abstraction levels (PaaS, IaaS) and functionalities. One of the first and more popular services is [EC2](https://aws.amazon.com/ec2/), which allows creating virtual machines with shared or dedicated resources that can be used to host one or more services.
+Amazon offers a wide (wider, in fact) range of services and products as part of its cloud infrastructure offering. They provide different abstraction levels (PaaS, IaaS) and functionalities. One of the first and more popular services is [EC2](https://aws.amazon.com/ec2/), which allows creating virtual machines with shared or dedicated resources that can be used to host one or more services. I will also make use of [RDS](https://aws.amazon.com/rds/) to host the PostgreSQL database that is used for data persistence.
 
 ### Infrastructure planning
 
-Since the pAPI is currently served by a single component, a single EC2 `t2.micro` instance will do for now (and it is covered by [AWS free tier](https://aws.amazon.com/free/) :)). When the service grows in complexity, I will explore the addition of new elements.
+The pAPI service is currently supported by two elements, an application server and a database. An EC2 `t2.micro` instance will be used as the application server and a RDS `db.t2.micro` instance will host the database. Both instances are quite small, but they are covered by [AWS free tier](https://aws.amazon.com/free/) :). When the service grows in complexity, I will explore the addition of new elements.
 
 ### AWS setup
 
@@ -58,10 +58,10 @@ Setting everything up for automatic infrastructure configuration could be as eas
 
 Within IAM (AWS identity and role management service), I created a `travisci` user to be used by the CI/CD pipeline and added it to a `Terraformers` group. I then created the needed policies and attached them to the group. When defining permissions policies, bear in mind that everything in AWS is a resource and that even the simplest configuration usually involves several types of them.
 
-As an example, the basic configuration described in this project consists of a single EC2 instance, but it comprises the following resources:
+As an example, the basic configuration described in this project consists of an EC2 instance and a RDS instance, but it comprises the following resources:
 
-- the EC2 instance itself
-- an AMI to launch the instance with
+- the EC2 and RDS instances themselves
+- an AMI to launch the EC2 instance with
 - an attached volume for storage
 - security groups to define inbound and outbound traffic rules
 - a key pair for SSH access
@@ -71,3 +71,15 @@ And one could also define a dedicated VPC, subnets and gateways instead of using
 The high level of granularity can sometimes make difficult to actually know what the minimum set of permissions looks like. A solution proposed by Amazon is [using CloudTrail event history](https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html#grant-least-privilege) to know exactly what APIs are called when operating the infrastructure and use that information to narrow privileges down. For more information, see [the discussion in this Terraform issue](https://github.com/hashicorp/terraform/issues/2834) and have a look at [this gist with example policies](https://gist.github.com/arsdehnel/70e292467ced2a39f472ddca44629c08).
 
 I also decided to use the same AWS account to give support to Terraform's backend for remote state. Doing so implies creating an S3 bucket to store the state file itself and a DynamoDB table to enable state locking. [The instructions on the Terraform site](https://www.terraform.io/docs/backends/types/s3.html) are easy to follow. One gotcha I'd like to note here: the key in the DynamoDB table must be called `LockID` and the name is case-sensitive.
+
+### Resource state persistence
+
+Choosing the right database is always an important decision in every application. It is a matter of selecting the best tool for the job, so the process boils down to analyzing carefully what data will be stored and how it will be used. In this case I had not much information about how clients will use the API or what the relations between `payment` resources and other types of resources are, so I made some assumptions and went for a low risk alternative.
+
+PostgreSQL is one of the most popular relational databases out there. It's open source and has been developed for more than 20 years. Even though there are no indications about what a payment resource exactly represents, I assumed that strong consistency (and ACID-compliancy in general) is a must and thus opted for a RDBMS instead of a NoSQL or document-oriented alternative.
+
+Besides, in the scenario depicted for the test there are no other resource types beyond payments, and would have been easy to implement persistence just by throwing JSON-marshalled payments into a resource collection in [MongoDB](https://www.mongodb.com). However, it is easy to imagine that a payment is not an isolated resource in a real-world use case. Instead, other resource types would exist which a payment would have relations with. The strict schema of a relational database looks like a better fit for this kind of situations. As an example, beneficiary and debtor account data is abstracted under a custom composite type, which in a real application would probably be on its own table in the schema (I used a composite type to keep the implementation simple).
+
+I decided to go with raw queries through stdlib's `database/sql` with [lib/pq](https://github.com/lib/pq) as driver instead of using an ORM. The queries, even though they are big in terms of values and parameters, are not complex. Moreover, an ORM usually requires annotating model types, and those are automatically generated by go-swagger, so editing that code was not a good solution. An alternative would have been to tweak the templates used by go-swagger so that models are generated with the needed struct tags.
+
+There are two main issues in the proposed solution that are still pending: correct handling of null values and using the `QueryContext` and `ExecContext` alternatives to implement timeouts and avoid unresponsiveness in the service in case of performance issues in the database. Unfortunately, `lib/pq` does not support `context` handling right now, although there are alternatives that do (such as [jackc/pgx](https://github.com/jackc/pgx); I will give it a try the next time I work with a PostgreSQL database).

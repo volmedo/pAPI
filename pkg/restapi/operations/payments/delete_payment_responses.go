@@ -80,3 +80,47 @@ func (o *DeletePaymentNotFound) WriteResponse(rw http.ResponseWriter, producer r
 		}
 	}
 }
+
+// DeletePaymentInternalServerErrorCode is the HTTP code returned for type DeletePaymentInternalServerError
+const DeletePaymentInternalServerErrorCode int = 500
+
+/*DeletePaymentInternalServerError Internal Server Error
+
+swagger:response deletePaymentInternalServerError
+*/
+type DeletePaymentInternalServerError struct {
+
+	/*
+	  In: Body
+	*/
+	Payload *models.APIError `json:"body,omitempty"`
+}
+
+// NewDeletePaymentInternalServerError creates DeletePaymentInternalServerError with default headers values
+func NewDeletePaymentInternalServerError() *DeletePaymentInternalServerError {
+
+	return &DeletePaymentInternalServerError{}
+}
+
+// WithPayload adds the payload to the delete payment internal server error response
+func (o *DeletePaymentInternalServerError) WithPayload(payload *models.APIError) *DeletePaymentInternalServerError {
+	o.Payload = payload
+	return o
+}
+
+// SetPayload sets the payload to the delete payment internal server error response
+func (o *DeletePaymentInternalServerError) SetPayload(payload *models.APIError) {
+	o.Payload = payload
+}
+
+// WriteResponse to the client
+func (o *DeletePaymentInternalServerError) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+
+	rw.WriteHeader(500)
+	if o.Payload != nil {
+		payload := o.Payload
+		if err := producer.Produce(rw, payload); err != nil {
+			panic(err) // let the recovery middleware deal with this
+		}
+	}
+}

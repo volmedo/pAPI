@@ -14,6 +14,7 @@ install: true
 script:
   - make lint
   - make test.unit
+  - make test.integration
   - make build
   - make terraform.chkfmt
   - make terraform.init

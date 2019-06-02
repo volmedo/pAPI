@@ -333,6 +333,10 @@ paths:
           description: Bad Request
           schema:
             $ref: "#/definitions/ApiError"
+        500:
+          description: Internal Server Error
+          schema:
+            $ref: "#/definitions/ApiError"
       summary: List payments
       tags: [Payments]
     post:
@@ -349,6 +353,10 @@ paths:
             $ref: "#/definitions/PaymentCreationResponse"
         409:
           description: A payment with the given ID already exists
+          schema:
+            $ref: "#/definitions/ApiError"
+        500:
+          description: Internal Server Error
           schema:
             $ref: "#/definitions/ApiError"
       summary: Create payment
@@ -370,6 +378,10 @@ paths:
           description: Payment Not Found
           schema:
             $ref: "#/definitions/ApiError"
+        500:
+          description: Internal Server Error
+          schema:
+            $ref: "#/definitions/ApiError"
       summary: Deletes a payment resource
       tags: [Payments]
     get:
@@ -388,6 +400,10 @@ paths:
             $ref: "#/definitions/PaymentDetailsResponse"
         404:
           description: Payment Not Found
+          schema:
+            $ref: "#/definitions/ApiError"
+        500:
+          description: Internal Server Error
           schema:
             $ref: "#/definitions/ApiError"
       summary: Fetch payment
@@ -413,6 +429,10 @@ paths:
             $ref: "#/definitions/PaymentUpdateResponse"
         404:
           description: Payment Not Found
+          schema:
+            $ref: "#/definitions/ApiError"
+        500:
+          description: Internal Server Error
           schema:
             $ref: "#/definitions/ApiError"
       summary: Update payment details

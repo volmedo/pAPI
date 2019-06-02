@@ -100,3 +100,47 @@ func (o *UpdatePaymentNotFound) WriteResponse(rw http.ResponseWriter, producer r
 		}
 	}
 }
+
+// UpdatePaymentInternalServerErrorCode is the HTTP code returned for type UpdatePaymentInternalServerError
+const UpdatePaymentInternalServerErrorCode int = 500
+
+/*UpdatePaymentInternalServerError Internal Server Error
+
+swagger:response updatePaymentInternalServerError
+*/
+type UpdatePaymentInternalServerError struct {
+
+	/*
+	  In: Body
+	*/
+	Payload *models.APIError `json:"body,omitempty"`
+}
+
+// NewUpdatePaymentInternalServerError creates UpdatePaymentInternalServerError with default headers values
+func NewUpdatePaymentInternalServerError() *UpdatePaymentInternalServerError {
+
+	return &UpdatePaymentInternalServerError{}
+}
+
+// WithPayload adds the payload to the update payment internal server error response
+func (o *UpdatePaymentInternalServerError) WithPayload(payload *models.APIError) *UpdatePaymentInternalServerError {
+	o.Payload = payload
+	return o
+}
+
+// SetPayload sets the payload to the update payment internal server error response
+func (o *UpdatePaymentInternalServerError) SetPayload(payload *models.APIError) {
+	o.Payload = payload
+}
+
+// WriteResponse to the client
+func (o *UpdatePaymentInternalServerError) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+
+	rw.WriteHeader(500)
+	if o.Payload != nil {
+		payload := o.Payload
+		if err := producer.Produce(rw, payload); err != nil {
+			panic(err) // let the recovery middleware deal with this
+		}
+	}
+}
