@@ -403,6 +403,9 @@ func updateTests() []TestCase {
 
 	wantPayment := copyPayment(updatedPayment)
 	wantPayment.Type = service.TYPE_PAYMENT
+	wantVersion := *wantPayment.Version
+	wantVersion += 1
+	wantPayment.Version = &wantVersion
 	wantResp := &models.PaymentUpdateResponse{Data: wantPayment}
 	return []TestCase{
 		{

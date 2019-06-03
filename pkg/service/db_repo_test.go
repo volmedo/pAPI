@@ -439,6 +439,11 @@ func TestUpdate(t *testing.T) {
 	if updated.Type != TYPE_PAYMENT {
 		t.Errorf("Wanted type to be %s but got %s", TYPE_PAYMENT, updated.Type)
 	}
+
+	if *updated.Version != *testPayment.Version+1 {
+		t.Errorf("Updated payment should have its version number incremented by one (want %d, got %d)",
+			*testPayment.Version+1, *updated.Version)
+	}
 }
 
 func TestUpdateNonExistent(t *testing.T) {

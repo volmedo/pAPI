@@ -668,12 +668,13 @@ func (dbpr *DBPaymentRepository) Update(paymentID strfmt.UUID, payment *models.P
 		sponsor_party.bank_id_code = $42
 	WHERE id = $1`
 
+	version := *payment.Version + 1
 	attrs := payment.Attributes
 	amounts := senderChargesToAmounts(attrs.ChargesInformation.SenderCharges)
 	res, err := dbpr.db.Exec(updateStmt,
 		payment.ID,                                       // id,
 		payment.OrganisationID,                           // organisation,
-		*payment.Version,                                 // version,
+		version,                                          // version,
 		attrs.Amount,                                     // amount,
 		attrs.BeneficiaryParty.AccountName,               // beneficiary_party.name,
 		attrs.BeneficiaryParty.AccountNumber,             // beneficiary_party.number,
@@ -729,6 +730,7 @@ func (dbpr *DBPaymentRepository) Update(paymentID strfmt.UUID, payment *models.P
 	// Ignore the original type attribute and fix it to TYPE_PAYMENT
 	updated := copyPayment(payment)
 	updated.Type = TYPE_PAYMENT
+	updated.Version = &version
 	return updated, nil
 }
 
