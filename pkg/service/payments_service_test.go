@@ -42,7 +42,7 @@ func init() {
 	procDate, _ := time.Parse(strfmt.RFC3339FullDate, "2017-01-18")
 
 	testPayment = models.Payment{
-		Type:           "Payment",
+		Type:           "",
 		ID:             &id,
 		Version:        &version,
 		OrganisationID: &orgID,
@@ -186,7 +186,7 @@ func TestPaymentsService(t *testing.T) {
 
 			if tc.setupData != nil {
 				for _, payment := range tc.setupData {
-					err := testRepo.Add(payment)
+					_, err := testRepo.Add(payment)
 					if err != nil {
 						t.Fatalf("Error populating test repository: %v", err)
 					}
@@ -219,6 +219,7 @@ func TestPaymentsService(t *testing.T) {
 	}
 }
 
+// copyPayment performs a deep copy of a models.Payment structure
 func copyPayment(payment *models.Payment) *models.Payment {
 	dup, _ := copystructure.Copy(*payment)
 	paymentDup := dup.(models.Payment)
@@ -325,7 +326,9 @@ func createTests() []TestCase {
 	params := payments.CreatePaymentParams{
 		PaymentCreationRequest: &models.PaymentCreationRequest{Data: &testPayment},
 	}
-	wantResp := &models.PaymentCreationResponse{Data: &testPayment}
+	wantPayment := copyPayment(&testPayment)
+	wantPayment.Type = service.TYPE_PAYMENT
+	wantResp := &models.PaymentCreationResponse{Data: wantPayment}
 	return []TestCase{
 		{
 			name:      "create",
@@ -346,7 +349,9 @@ func createTests() []TestCase {
 func getTests() []TestCase {
 	setupData := []*models.Payment{&testPayment}
 	params := payments.GetPaymentParams{ID: *testPayment.ID}
-	wantResp := &models.PaymentDetailsResponse{Data: &testPayment}
+	wantPayment := copyPayment(&testPayment)
+	wantPayment.Type = service.TYPE_PAYMENT
+	wantResp := &models.PaymentDetailsResponse{Data: wantPayment}
 	return []TestCase{
 		{
 			name:      "get",
@@ -386,6 +391,7 @@ func deleteTests() []TestCase {
 
 func updateTests() []TestCase {
 	setupData := []*models.Payment{&testPayment}
+
 	updatedPayment := copyPayment(&testPayment)
 	updatedPayment.Attributes.Amount = models.Amount("150.00")
 	updatedPayment.Attributes.Fx.OriginalAmount = models.Amount("300.00")
@@ -394,7 +400,10 @@ func updateTests() []TestCase {
 		ID:                   *updatedPayment.ID,
 		PaymentUpdateRequest: &models.PaymentUpdateRequest{Data: updatedPayment},
 	}
-	wantResp := &models.PaymentUpdateResponse{Data: updatedPayment}
+
+	wantPayment := copyPayment(updatedPayment)
+	wantPayment.Type = service.TYPE_PAYMENT
+	wantResp := &models.PaymentUpdateResponse{Data: wantPayment}
 	return []TestCase{
 		{
 			name:      "update",
@@ -428,6 +437,7 @@ func listTests() []TestCase {
 		payment := copyPayment(&testPayment)
 		pID := strfmt.UUID(id)
 		payment.ID = &pID
+		payment.Type = service.TYPE_PAYMENT
 		setupData = append(setupData, payment)
 	}
 

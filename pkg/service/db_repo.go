@@ -6,6 +6,7 @@ import (
 	"database/sql/driver"
 	"encoding/csv"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/go-openapi/strfmt"
@@ -13,6 +14,7 @@ import (
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/lib/pq"
+	"github.com/mitchellh/copystructure"
 
 	"github.com/volmedo/pAPI/pkg/models"
 )
@@ -184,7 +186,7 @@ func (dbpr *DBPaymentRepository) Close() error {
 //
 // Add returns an error if a payment with the same ID as the one
 // to be added already exists
-func (dbpr *DBPaymentRepository) Add(payment *models.Payment) error {
+func (dbpr *DBPaymentRepository) Add(payment *models.Payment) (*models.Payment, error) {
 	insertStmt := `
 	INSERT INTO payments (
 		id,
@@ -287,13 +289,16 @@ func (dbpr *DBPaymentRepository) Add(payment *models.Payment) error {
 
 	if err != nil {
 		if e, ok := err.(*pq.Error); ok && e.Code == "23505" {
-			return newErrConflict(fmt.Sprintf("db: a payment with ID %s already exists", *payment.ID))
+			return nil, newErrConflict(fmt.Sprintf("db: a payment with ID %s already exists", *payment.ID))
 		}
 
-		return fmt.Errorf("db: error executing insert: %v", err)
+		return nil, fmt.Errorf("db: error executing insert: %v", err)
 	}
 
-	return nil
+	// Ignore the original type attribute and fix it to TYPE_PAYMENT
+	added := copyPayment(payment)
+	added.Type = TYPE_PAYMENT
+	return added, nil
 }
 
 // Delete deletes the payment resource associated to the given paymentID
@@ -381,7 +386,7 @@ func (dbpr *DBPaymentRepository) Get(paymentID strfmt.UUID) (*models.Payment, er
 	payment := models.Payment{
 		ID:             new(strfmt.UUID),
 		OrganisationID: new(strfmt.UUID),
-		Type:           "Payment",
+		Type:           TYPE_PAYMENT,
 		Version:        new(int64),
 	}
 	attrs := models.PaymentAttributes{
@@ -539,7 +544,7 @@ func (dbpr *DBPaymentRepository) List(offset, limit int64) ([]*models.Payment, e
 		payment := models.Payment{
 			ID:             new(strfmt.UUID),
 			OrganisationID: new(strfmt.UUID),
-			Type:           "Payment",
+			Type:           TYPE_PAYMENT,
 			Version:        new(int64),
 		}
 		attrs := models.PaymentAttributes{
@@ -616,7 +621,7 @@ func (dbpr *DBPaymentRepository) List(offset, limit int64) ([]*models.Payment, e
 // implementation is a basic one that doesn't support updating fields selectively.
 //
 // Update returns an error if the paymentID does not exist in the collection
-func (dbpr *DBPaymentRepository) Update(paymentID strfmt.UUID, payment *models.Payment) error {
+func (dbpr *DBPaymentRepository) Update(paymentID strfmt.UUID, payment *models.Payment) (*models.Payment, error) {
 	updateStmt := `
 	UPDATE payments
 	SET
@@ -710,16 +715,43 @@ func (dbpr *DBPaymentRepository) Update(paymentID strfmt.UUID, payment *models.P
 		attrs.SponsorParty.BankIDCode,                    // sponsor_party.bank_id_code
 	)
 	if err != nil {
-		return fmt.Errorf("db: error executing update: %v", err)
+		return nil, fmt.Errorf("db: error executing update: %v", err)
 	}
 
 	count, err := res.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("db: error getting rows affected by update: %v", err)
+		return nil, fmt.Errorf("db: error getting rows affected by update: %v", err)
 	}
 	if count == 0 {
-		return newErrNoResults(fmt.Sprintf("db: payment with ID %s not found", paymentID))
+		return nil, newErrNoResults(fmt.Sprintf("db: payment with ID %s not found", paymentID))
 	}
 
-	return nil
+	// Ignore the original type attribute and fix it to TYPE_PAYMENT
+	updated := copyPayment(payment)
+	updated.Type = TYPE_PAYMENT
+	return updated, nil
+}
+
+// copyPayment performs a deep copy of a models.Payment structure
+func copyPayment(payment *models.Payment) *models.Payment {
+	// Configuration for copystructure package to correctly copy strfmt.Date
+	// Copy operation on this type fails if a custom copier function is not provided
+	// because of the strfmt.RFC3339FullDate custom format.
+	// This only needs to be done once
+	if _, ok := copystructure.Copiers[reflect.TypeOf(strfmt.Date{})]; !ok {
+		dateCopier := func(d interface{}) (interface{}, error) {
+			date, ok := d.(strfmt.Date)
+			if !ok {
+				return nil, fmt.Errorf("Wrong type: %T", d)
+			}
+
+			dup := date.DeepCopy()
+			return *dup, nil
+		}
+		copystructure.Copiers[reflect.TypeOf(strfmt.Date{})] = dateCopier
+	}
+
+	dup, _ := copystructure.Copy(*payment)
+	paymentDup := dup.(models.Payment)
+	return &paymentDup
 }
