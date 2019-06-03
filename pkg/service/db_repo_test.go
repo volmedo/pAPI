@@ -87,7 +87,9 @@ func generateDummyPayments(howMany int) []*models.Payment {
 			Type:           TYPE_PAYMENT,
 			Version:        new(int64),
 		}
-		senderCharges := []*models.ChargesInformationSenderChargesItems0{&models.ChargesInformationSenderChargesItems0{}}
+		senderCharges := []*models.ChargesInformationSenderChargesItems0{
+			&models.ChargesInformationSenderChargesItems0{},
+		}
 		attrs := &models.PaymentAttributes{
 			BeneficiaryParty:   &models.PaymentParty{},
 			ChargesInformation: &models.ChargesInformation{SenderCharges: senderCharges},
@@ -191,7 +193,9 @@ func TestAddConflict(t *testing.T) {
 	}
 	defer testRepo.Close()
 
-	mock.ExpectExec(`^INSERT INTO payments`).WillReturnResult(sqlmock.NewResult(0, 1)).WillReturnError(&pq.Error{Code: pq.ErrorCode("23505")})
+	mock.ExpectExec(`^INSERT INTO payments`).
+		WillReturnResult(sqlmock.NewResult(0, 1)).
+		WillReturnError(&pq.Error{Code: pq.ErrorCode("23505")})
 
 	testPayment := generateDummyPayments(1)[0]
 	_, err = testRepo.Add(testPayment)
