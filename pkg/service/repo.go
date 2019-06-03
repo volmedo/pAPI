@@ -5,6 +5,10 @@ import (
 	"github.com/volmedo/pAPI/pkg/models"
 )
 
+// TYPE_PAYMENT is a constant string that contains the value of the Type
+// attribute of every payment resource
+const TYPE_PAYMENT = "Payment"
+
 // PaymentRepository stores a collection of payment resources that
 // is safe for concurrent use
 type PaymentRepository interface {
@@ -12,7 +16,7 @@ type PaymentRepository interface {
 	//
 	// Add returns an error if a payment with the same ID as the one
 	// to be added already exists
-	Add(payment *models.Payment) error
+	Add(payment *models.Payment) (*models.Payment, error)
 
 	// Delete deletes the payment resource associated to the given paymentID
 	//
@@ -35,7 +39,7 @@ type PaymentRepository interface {
 	// Update updates the details associated with the given paymentID
 	//
 	// Update returns an error if the paymentID does not exist in the collection
-	Update(paymentID strfmt.UUID, payment *models.Payment) error
+	Update(paymentID strfmt.UUID, payment *models.Payment) (*models.Payment, error)
 }
 
 // ErrConflict signals an attempt to add a new payment with the same

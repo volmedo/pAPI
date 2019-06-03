@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -83,10 +84,12 @@ func generateDummyPayments(howMany int) []*models.Payment {
 		payment := &models.Payment{
 			ID:             &uuid,
 			OrganisationID: new(strfmt.UUID),
-			Type:           "Payment",
+			Type:           TYPE_PAYMENT,
 			Version:        new(int64),
 		}
-		senderCharges := []*models.ChargesInformationSenderChargesItems0{&models.ChargesInformationSenderChargesItems0{}}
+		senderCharges := []*models.ChargesInformationSenderChargesItems0{
+			&models.ChargesInformationSenderChargesItems0{},
+		}
 		attrs := &models.PaymentAttributes{
 			BeneficiaryParty:   &models.PaymentParty{},
 			ChargesInformation: &models.ChargesInformation{SenderCharges: senderCharges},
@@ -167,12 +170,19 @@ func TestAdd(t *testing.T) {
 	mock.ExpectExec(`^INSERT INTO payments`).WillReturnResult(sqlmock.NewResult(0, 1))
 
 	testPayment := generateDummyPayments(1)[0]
-	if err := testRepo.Add(testPayment); err != nil {
+	// Modify the test payment to check that it gets the right type
+	testPayment.Type = TYPE_PAYMENT + "BAD"
+	added, err := testRepo.Add(testPayment)
+	if err != nil {
 		t.Errorf("Unexpected error adding payment: %v", err)
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("Expectations were not met: %s", err)
+	}
+
+	if added.Type != TYPE_PAYMENT {
+		t.Errorf("Wanted type to be %s but got %s", TYPE_PAYMENT, added.Type)
 	}
 }
 
@@ -183,10 +193,12 @@ func TestAddConflict(t *testing.T) {
 	}
 	defer testRepo.Close()
 
-	mock.ExpectExec(`^INSERT INTO payments`).WillReturnResult(sqlmock.NewResult(0, 1)).WillReturnError(&pq.Error{Code: pq.ErrorCode("23505")})
+	mock.ExpectExec(`^INSERT INTO payments`).
+		WillReturnResult(sqlmock.NewResult(0, 1)).
+		WillReturnError(&pq.Error{Code: pq.ErrorCode("23505")})
 
 	testPayment := generateDummyPayments(1)[0]
-	err = testRepo.Add(testPayment)
+	_, err = testRepo.Add(testPayment)
 	e, ok := err.(ErrConflict)
 	if err == nil || !ok {
 		t.Errorf("Expected ErrConflict but got %v", e)
@@ -254,12 +266,17 @@ func TestGet(t *testing.T) {
 		WithArgs(*testPayment.ID).
 		WillReturnRows(rows)
 
-	if _, err := testRepo.Get(*testPayment.ID); err != nil {
+	got, err := testRepo.Get(*testPayment.ID)
+	if err != nil {
 		t.Errorf("Error getting payment: %v", err)
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("Expectations were not met: %s", err)
+	}
+
+	if got.Type != TYPE_PAYMENT {
+		t.Errorf("Wanted type to be %s but got %s", TYPE_PAYMENT, got.Type)
 	}
 }
 
@@ -400,6 +417,8 @@ func TestUpdate(t *testing.T) {
 	defer testRepo.Close()
 
 	testPayment := generateDummyPayments(1)[0]
+	// Modify the test payment to check that it gets the right type
+	testPayment.Type = TYPE_PAYMENT + "BAD"
 	args := make([]driver.Value, 42)
 	for i := range args {
 		args[i] = sqlmock.AnyArg()
@@ -408,12 +427,22 @@ func TestUpdate(t *testing.T) {
 		WithArgs(args...).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 
-	if err := testRepo.Update(*testPayment.ID, testPayment); err != nil {
+	updated, err := testRepo.Update(*testPayment.ID, testPayment)
+	if err != nil {
 		t.Errorf("Unexpected error updating payment: %v", err)
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("Expectations were not met: %s", err)
+	}
+
+	if updated.Type != TYPE_PAYMENT {
+		t.Errorf("Wanted type to be %s but got %s", TYPE_PAYMENT, updated.Type)
+	}
+
+	if *updated.Version != *testPayment.Version+1 {
+		t.Errorf("Updated payment should have its version number incremented by one (want %d, got %d)",
+			*testPayment.Version+1, *updated.Version)
 	}
 }
 
@@ -433,7 +462,7 @@ func TestUpdateNonExistent(t *testing.T) {
 		WithArgs(args...).
 		WillReturnResult(sqlmock.NewResult(0, 0))
 
-	err = testRepo.Update(*testPayment.ID, testPayment)
+	_, err = testRepo.Update(*testPayment.ID, testPayment)
 	e, ok := err.(ErrNoResults)
 	if err == nil || !ok {
 		t.Errorf("Expected ErrNoResults but got %v", e)
@@ -522,5 +551,17 @@ func TestAmountScan(t *testing.T) {
 				t.Fatalf("got: %v, want: %v", a, tc.want)
 			}
 		})
+	}
+}
+
+func TestCopyPayment(t *testing.T) {
+	testPayment := generateDummyPayments(1)[0]
+	copy := copyPayment(testPayment)
+	if copy == testPayment {
+		t.Error("Copy points to the same value")
+	}
+
+	if !reflect.DeepEqual(copy, testPayment) {
+		t.Error("Original and copied payments don't match")
 	}
 }

@@ -20,7 +20,7 @@ type PaymentsService struct {
 // CreatePayment Adds a new payment with the data included in params
 func (papi *PaymentsService) CreatePayment(ctx context.Context, params payments.CreatePaymentParams) middleware.Responder {
 	payment := params.PaymentCreationRequest.Data
-	err := papi.Repo.Add(payment)
+	created, err := papi.Repo.Add(payment)
 	if err != nil {
 		apiError := newAPIError(err.Error())
 		if _, ok := err.(ErrConflict); ok {
@@ -30,8 +30,7 @@ func (papi *PaymentsService) CreatePayment(ctx context.Context, params payments.
 		return payments.NewCreatePaymentInternalServerError().WithPayload(apiError)
 	}
 
-	respData := payment
-	resp := &models.PaymentCreationResponse{Data: respData}
+	resp := &models.PaymentCreationResponse{Data: created}
 	return payments.NewCreatePaymentCreated().WithPayload(resp)
 }
 
@@ -53,8 +52,8 @@ func (papi *PaymentsService) DeletePayment(ctx context.Context, params payments.
 
 // GetPayment Returns details of a payment identified by its ID
 func (papi *PaymentsService) GetPayment(ctx context.Context, params payments.GetPaymentParams) middleware.Responder {
-	paymentID := params.ID.DeepCopy()
-	payment, err := papi.Repo.Get(*paymentID)
+	paymentID := params.ID
+	got, err := papi.Repo.Get(paymentID)
 	if err != nil {
 		apiError := newAPIError(err.Error())
 		if _, ok := err.(ErrNoResults); ok {
@@ -64,7 +63,7 @@ func (papi *PaymentsService) GetPayment(ctx context.Context, params payments.Get
 		return payments.NewGetPaymentInternalServerError().WithPayload(apiError)
 	}
 
-	resp := &models.PaymentDetailsResponse{Data: payment}
+	resp := &models.PaymentDetailsResponse{Data: got}
 	return payments.NewGetPaymentOK().WithPayload(resp)
 }
 
@@ -85,15 +84,16 @@ func (papi *PaymentsService) ListPayments(ctx context.Context, params payments.L
 
 		return payments.NewListPaymentsInternalServerError().WithPayload(apiError)
 	}
+
 	resp := &models.PaymentDetailsListResponse{Data: list}
 	return payments.NewListPaymentsOK().WithPayload(resp)
 }
 
 // UpdatePayment Adds a new payment with the data included in params
 func (papi *PaymentsService) UpdatePayment(ctx context.Context, params payments.UpdatePaymentParams) middleware.Responder {
-	paymentID := params.ID.DeepCopy()
+	paymentID := params.ID
 	payment := params.PaymentUpdateRequest.Data
-	err := papi.Repo.Update(*paymentID, payment)
+	updated, err := papi.Repo.Update(paymentID, payment)
 	if err != nil {
 		apiError := newAPIError(err.Error())
 		if _, ok := err.(ErrNoResults); ok {
@@ -103,7 +103,7 @@ func (papi *PaymentsService) UpdatePayment(ctx context.Context, params payments.
 		return payments.NewUpdatePaymentInternalServerError().WithPayload(apiError)
 	}
 
-	resp := &models.PaymentUpdateResponse{Data: payment}
+	resp := &models.PaymentUpdateResponse{Data: updated}
 	return payments.NewUpdatePaymentOK().WithPayload(resp)
 }
 
