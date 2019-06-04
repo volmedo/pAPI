@@ -58,17 +58,22 @@ lint:
 test.unit:
 	$(GO) test -v -race ./$(PKG)/service
 
+# The exit code of the test command is saved in a variable to call POSTGRES_STOP
+# no matter if tests fails or not but make the final exit code of the command depend
+# on the result of tests, so that the step fails in CI if tests fail
 test.integration:
 	$(POSTGRES_START)
 	$(POSTGRES_WAIT)
-	-$(GO) test -v -race -tags=integration ./$(PKG)/service \
+	$(GO) test -v -race -tags=integration ./$(PKG)/service \
 		-dbhost=$(DB_HOST) \
 		-dbport=$(DB_PORT) \
 		-dbuser=$(DB_USER) \
 		-dbpass=$(DB_PASS) \
 		-dbname=$(DB_NAME) \
-		-migrations=./migrations
-	$(POSTGRES_STOP)
+		-migrations=./migrations ;\
+	TEST_RESULT=$$? ;\
+	$(POSTGRES_STOP) ;\
+	exit $$TEST_RESULT
 
 build: ./$(CMD)/server/main.go
 	GOOS=$(TARGET_OS) GOARCH=$(TARGET_ARCH) $(GO) build -o $(SRV_BIN_NAME) ./$(CMD)/server/main.go
@@ -87,9 +92,11 @@ test.e2e.local:
 		-migrations=./$(PKG)/service/migrations & \
 	SERVER_PID=$$! ;\
 	$(GO) test -v -race ./$(E2E) -host=localhost -port=8080 ;\
+	TEST_RESULT=$$? ;\
 	kill $$SERVER_PID ;\
-	rm testsrv
-	$(POSTGRES_STOP)
+	rm testsrv ;\
+	$(POSTGRES_STOP) ;\
+	exit $$TEST_RESULT
 
 test.e2e:
 	$(TERRAFORM) output > tf.out ;\
@@ -100,8 +107,10 @@ test.e2e:
 	else \
 		echo "Testing API at http://$$HOST:$$PORT" ;\
 		$(GO) test -v -race ./$(E2E) -host=$$HOST -port=$$PORT ;\
+		TEST_RESULT=$$? ;\
 	fi ;\
-	rm tf.out
+	rm tf.out ;\
+	exit $$TEST_RESULT
 
 terraform.keygen:
 	ssh-keygen -t rsa -b 4096 -f $(TF_SSH_KEY_PATH) -N ""
@@ -159,4 +168,4 @@ clean:
 .PHONY: $(patsubst %,terraform.%,keygen init chkfmt validate apply output destroy)
 .PHONY: clean
 
-.SILENT: test-e2e $(patsubst %,terraform.%,init chkfmt validate apply output destroy)
+.SILENT: $(patsubst %,terraform.%,init chkfmt validate apply output destroy)
