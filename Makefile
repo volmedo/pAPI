@@ -75,11 +75,11 @@ test.integration:
 	$(POSTGRES_STOP) ;\
 	exit $$TEST_RESULT
 
-build: ./$(CMD)/server/main.go
-	GOOS=$(TARGET_OS) GOARCH=$(TARGET_ARCH) $(GO) build -o $(SRV_BIN_NAME) ./$(CMD)/server/main.go
+build:
+	GOOS=$(TARGET_OS) GOARCH=$(TARGET_ARCH) $(GO) build -o $(SRV_BIN_NAME) ./$(CMD)/server
 
 test.e2e.local:
-	$(GO) build -o testsrv ./$(CMD)/server/main.go
+	$(GO) build -o testsrv ./$(CMD)/server
 	$(POSTGRES_START)
 	$(POSTGRES_WAIT)
 	./testsrv \
