@@ -67,9 +67,7 @@ Feature: Update payment
         When I update the payment with ID "4ee3a8d8-ca7b-4290-a52c-dd5b6165ec43" with new details in JSON:
             """
             {
-                "type": "Payment",
                 "id": "4ee3a8d8-ca7b-4290-a52c-dd5b6165ec43",
-                "version": 0,
                 "organisation_id": "743d5b63-8e6f-432e-a8fa-c5d8d2ee5fcb",
                 "attributes": {
                     "amount": "150.00",
@@ -132,7 +130,7 @@ Feature: Update payment
             {
                 "type": "Payment",
                 "id": "4ee3a8d8-ca7b-4290-a52c-dd5b6165ec43",
-                "version": 0,
+                "version": 1,
                 "organisation_id": "743d5b63-8e6f-432e-a8fa-c5d8d2ee5fcb",
                 "attributes": {
                     "amount": "150.00",

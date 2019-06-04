@@ -622,6 +622,12 @@ func (dbpr *DBPaymentRepository) List(offset, limit int64) ([]*models.Payment, e
 //
 // Update returns an error if the paymentID does not exist in the collection
 func (dbpr *DBPaymentRepository) Update(paymentID strfmt.UUID, payment *models.Payment) (*models.Payment, error) {
+	// Look for the ID in the DB to check if the payment exists and get its version
+	original, err := dbpr.Get(paymentID)
+	if err != nil {
+		return nil, err
+	}
+
 	updateStmt := `
 	UPDATE payments
 	SET
@@ -668,10 +674,10 @@ func (dbpr *DBPaymentRepository) Update(paymentID strfmt.UUID, payment *models.P
 		sponsor_party.bank_id_code = $42
 	WHERE id = $1`
 
-	version := *payment.Version + 1
+	version := *original.Version + 1
 	attrs := payment.Attributes
 	amounts := senderChargesToAmounts(attrs.ChargesInformation.SenderCharges)
-	res, err := dbpr.db.Exec(updateStmt,
+	_, err = dbpr.db.Exec(updateStmt,
 		payment.ID,                                       // id,
 		payment.OrganisationID,                           // organisation,
 		version,                                          // version,
@@ -717,14 +723,6 @@ func (dbpr *DBPaymentRepository) Update(paymentID strfmt.UUID, payment *models.P
 	)
 	if err != nil {
 		return nil, fmt.Errorf("db: error executing update: %v", err)
-	}
-
-	count, err := res.RowsAffected()
-	if err != nil {
-		return nil, fmt.Errorf("db: error getting rows affected by update: %v", err)
-	}
-	if count == 0 {
-		return nil, newErrNoResults(fmt.Sprintf("db: payment with ID %s not found", paymentID))
 	}
 
 	// Ignore the original type attribute and fix it to TYPE_PAYMENT

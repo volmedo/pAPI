@@ -419,6 +419,11 @@ func TestUpdate(t *testing.T) {
 	testPayment := generateDummyPayments(1)[0]
 	// Modify the test payment to check that it gets the right type
 	testPayment.Type = TYPE_PAYMENT + "BAD"
+	rows := paymentsToRows([]*models.Payment{testPayment})
+	mock.ExpectQuery(`^SELECT (.+) FROM payments WHERE id = \$1$`).
+		WithArgs(*testPayment.ID).
+		WillReturnRows(rows)
+
 	args := make([]driver.Value, 42)
 	for i := range args {
 		args[i] = sqlmock.AnyArg()
@@ -429,7 +434,7 @@ func TestUpdate(t *testing.T) {
 
 	updated, err := testRepo.Update(*testPayment.ID, testPayment)
 	if err != nil {
-		t.Errorf("Unexpected error updating payment: %v", err)
+		t.Fatalf("Unexpected error updating payment: %v", err)
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -454,13 +459,9 @@ func TestUpdateNonExistent(t *testing.T) {
 	defer testRepo.Close()
 
 	testPayment := generateDummyPayments(1)[0]
-	args := make([]driver.Value, 42)
-	for i := range args {
-		args[i] = sqlmock.AnyArg()
-	}
-	mock.ExpectExec(`^UPDATE payments SET (.+) WHERE id = \$1$`).
-		WithArgs(args...).
-		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectQuery(`^SELECT (.+) FROM payments WHERE id = \$1$`).
+		WithArgs(*testPayment.ID).
+		WillReturnError(sql.ErrNoRows)
 
 	_, err = testRepo.Update(*testPayment.ID, testPayment)
 	e, ok := err.(ErrNoResults)
