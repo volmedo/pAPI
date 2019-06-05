@@ -12,8 +12,9 @@ import (
 
 func main() {
 	var dbHost, dbUser, dbPass, dbName, migrationsPath string
-	var port, dbPort int
+	var port, rps, dbPort int
 	flag.IntVar(&port, "port", 8080, "Port where the server is listening for connections.")
+	flag.IntVar(&rps, "rps", 100, "Rate limit expressed in requests per second (per client)")
 
 	flag.StringVar(&dbHost, "dbhost", "localhost", "Address of the server that hosts the DB")
 	flag.IntVar(&dbPort, "dbport", 5432, "Port where the DB server is listening for connections")
@@ -50,10 +51,14 @@ func main() {
 		Logger:      log.Printf,
 	})
 	if err != nil {
-		log.Fatal(err)
+		panic(fmt.Sprintf("Error creating main API handler: %v", err))
+	}
+
+	rateLimitedHandler, err := newRateLimitedHandler(int64(rps), handler)
+	if err != nil {
+		panic(fmt.Sprintf("Error creating rate limiter middleware: %v", err))
 	}
 
 	log.Printf("Starting server, accepting requests on port %d\n", port)
-
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), handler))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), rateLimitedHandler))
 }

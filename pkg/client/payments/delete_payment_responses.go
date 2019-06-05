@@ -39,6 +39,13 @@ func (o *DeletePaymentReader) ReadResponse(response runtime.ClientResponse, cons
 		}
 		return nil, result
 
+	case 429:
+		result := NewDeletePaymentTooManyRequests()
+		if err := result.readResponse(response, consumer, o.formats); err != nil {
+			return nil, err
+		}
+		return nil, result
+
 	case 500:
 		result := NewDeletePaymentInternalServerError()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
@@ -97,6 +104,27 @@ func (o *DeletePaymentNotFound) readResponse(response runtime.ClientResponse, co
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
 		return err
 	}
+
+	return nil
+}
+
+// NewDeletePaymentTooManyRequests creates a DeletePaymentTooManyRequests with default headers values
+func NewDeletePaymentTooManyRequests() *DeletePaymentTooManyRequests {
+	return &DeletePaymentTooManyRequests{}
+}
+
+/*DeletePaymentTooManyRequests handles this case with default header values.
+
+Too Many Requests
+*/
+type DeletePaymentTooManyRequests struct {
+}
+
+func (o *DeletePaymentTooManyRequests) Error() string {
+	return fmt.Sprintf("[DELETE /payments/{id}][%d] deletePaymentTooManyRequests ", 429)
+}
+
+func (o *DeletePaymentTooManyRequests) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	return nil
 }

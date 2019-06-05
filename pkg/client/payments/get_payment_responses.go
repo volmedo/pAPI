@@ -39,6 +39,13 @@ func (o *GetPaymentReader) ReadResponse(response runtime.ClientResponse, consume
 		}
 		return nil, result
 
+	case 429:
+		result := NewGetPaymentTooManyRequests()
+		if err := result.readResponse(response, consumer, o.formats); err != nil {
+			return nil, err
+		}
+		return nil, result
+
 	case 500:
 		result := NewGetPaymentInternalServerError()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
@@ -105,6 +112,27 @@ func (o *GetPaymentNotFound) readResponse(response runtime.ClientResponse, consu
 	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
 		return err
 	}
+
+	return nil
+}
+
+// NewGetPaymentTooManyRequests creates a GetPaymentTooManyRequests with default headers values
+func NewGetPaymentTooManyRequests() *GetPaymentTooManyRequests {
+	return &GetPaymentTooManyRequests{}
+}
+
+/*GetPaymentTooManyRequests handles this case with default header values.
+
+Too Many Requests
+*/
+type GetPaymentTooManyRequests struct {
+}
+
+func (o *GetPaymentTooManyRequests) Error() string {
+	return fmt.Sprintf("[GET /payments/{id}][%d] getPaymentTooManyRequests ", 429)
+}
+
+func (o *GetPaymentTooManyRequests) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	return nil
 }

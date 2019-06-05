@@ -333,6 +333,8 @@ paths:
           description: Bad Request
           schema:
             $ref: "#/definitions/ApiError"
+        429:
+          description: Too Many Requests
         500:
           description: Internal Server Error
           schema:
@@ -355,6 +357,8 @@ paths:
           description: A payment with the given ID already exists
           schema:
             $ref: "#/definitions/ApiError"
+        429:
+          description: Too Many Requests
         500:
           description: Internal Server Error
           schema:
@@ -378,6 +382,8 @@ paths:
           description: Payment Not Found
           schema:
             $ref: "#/definitions/ApiError"
+        429:
+          description: Too Many Requests
         500:
           description: Internal Server Error
           schema:
@@ -402,6 +408,8 @@ paths:
           description: Payment Not Found
           schema:
             $ref: "#/definitions/ApiError"
+        429:
+          description: Too Many Requests
         500:
           description: Internal Server Error
           schema:
@@ -431,6 +439,8 @@ paths:
           description: Payment Not Found
           schema:
             $ref: "#/definitions/ApiError"
+        429:
+          description: Too Many Requests
         500:
           description: Internal Server Error
           schema:

@@ -101,6 +101,30 @@ func (o *UpdatePaymentNotFound) WriteResponse(rw http.ResponseWriter, producer r
 	}
 }
 
+// UpdatePaymentTooManyRequestsCode is the HTTP code returned for type UpdatePaymentTooManyRequests
+const UpdatePaymentTooManyRequestsCode int = 429
+
+/*UpdatePaymentTooManyRequests Too Many Requests
+
+swagger:response updatePaymentTooManyRequests
+*/
+type UpdatePaymentTooManyRequests struct {
+}
+
+// NewUpdatePaymentTooManyRequests creates UpdatePaymentTooManyRequests with default headers values
+func NewUpdatePaymentTooManyRequests() *UpdatePaymentTooManyRequests {
+
+	return &UpdatePaymentTooManyRequests{}
+}
+
+// WriteResponse to the client
+func (o *UpdatePaymentTooManyRequests) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+
+	rw.Header().Del(runtime.HeaderContentType) //Remove Content-Type on empty responses
+
+	rw.WriteHeader(429)
+}
+
 // UpdatePaymentInternalServerErrorCode is the HTTP code returned for type UpdatePaymentInternalServerError
 const UpdatePaymentInternalServerErrorCode int = 500
 

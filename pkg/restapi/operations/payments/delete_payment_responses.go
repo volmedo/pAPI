@@ -81,6 +81,30 @@ func (o *DeletePaymentNotFound) WriteResponse(rw http.ResponseWriter, producer r
 	}
 }
 
+// DeletePaymentTooManyRequestsCode is the HTTP code returned for type DeletePaymentTooManyRequests
+const DeletePaymentTooManyRequestsCode int = 429
+
+/*DeletePaymentTooManyRequests Too Many Requests
+
+swagger:response deletePaymentTooManyRequests
+*/
+type DeletePaymentTooManyRequests struct {
+}
+
+// NewDeletePaymentTooManyRequests creates DeletePaymentTooManyRequests with default headers values
+func NewDeletePaymentTooManyRequests() *DeletePaymentTooManyRequests {
+
+	return &DeletePaymentTooManyRequests{}
+}
+
+// WriteResponse to the client
+func (o *DeletePaymentTooManyRequests) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+
+	rw.Header().Del(runtime.HeaderContentType) //Remove Content-Type on empty responses
+
+	rw.WriteHeader(429)
+}
+
 // DeletePaymentInternalServerErrorCode is the HTTP code returned for type DeletePaymentInternalServerError
 const DeletePaymentInternalServerErrorCode int = 500
 
