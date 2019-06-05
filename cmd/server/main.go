@@ -36,29 +36,36 @@ func main() {
 	}
 	db, err := service.NewDB(dbConf)
 	if err != nil {
-		panic(fmt.Sprintf("Unable to configure DB connection: %v", err))
+		log.Panicf("Unable to configure DB connection: %v", err)
 	}
 
 	testRepo, err := service.NewDBPaymentRepository(db, dbName, migrationsPath)
 	if err != nil {
-		panic(fmt.Sprintf("Unable to create DB repo: %v", err))
+		log.Panicf("Unable to create DB repo: %v", err)
 	}
 
 	ps := &service.PaymentsService{Repo: testRepo}
 
-	handler, err := restapi.Handler(restapi.Config{
+	apiHandler, err := restapi.Handler(restapi.Config{
 		PaymentsAPI: ps,
 		Logger:      log.Printf,
 	})
 	if err != nil {
-		panic(fmt.Sprintf("Error creating main API handler: %v", err))
+		log.Panicf("Error creating main API handler: %v", err)
 	}
 
-	rateLimitedHandler, err := newRateLimitedHandler(int64(rps), handler)
+	apiHandler, prometheusHandler := newMeasuredHandler(apiHandler)
+	apiHandler, err = newRateLimitedHandler(int64(rps), apiHandler)
 	if err != nil {
-		panic(fmt.Sprintf("Error creating rate limiter middleware: %v", err))
+		log.Panicf("Error creating rate limiter middleware: %v", err)
 	}
+
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", prometheusHandler)
+	mux.Handle("/", apiHandler)
 
 	log.Printf("Starting server, accepting requests on port %d\n", port)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), rateLimitedHandler))
+	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), mux); err != nil {
+		log.Panicf("Error while serving: %v", err)
+	}
 }
