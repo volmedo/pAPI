@@ -74,6 +74,9 @@ func init() {
               "$ref": "#/definitions/ApiError"
             }
           },
+          "429": {
+            "description": "Too Many Requests"
+          },
           "500": {
             "description": "Internal Server Error",
             "schema": {
@@ -109,6 +112,9 @@ func init() {
             "schema": {
               "$ref": "#/definitions/ApiError"
             }
+          },
+          "429": {
+            "description": "Too Many Requests"
           },
           "500": {
             "description": "Internal Server Error",
@@ -148,6 +154,9 @@ func init() {
             "schema": {
               "$ref": "#/definitions/ApiError"
             }
+          },
+          "429": {
+            "description": "Too Many Requests"
           },
           "500": {
             "description": "Internal Server Error",
@@ -194,6 +203,9 @@ func init() {
               "$ref": "#/definitions/ApiError"
             }
           },
+          "429": {
+            "description": "Too Many Requests"
+          },
           "500": {
             "description": "Internal Server Error",
             "schema": {
@@ -227,6 +239,9 @@ func init() {
             "schema": {
               "$ref": "#/definitions/ApiError"
             }
+          },
+          "429": {
+            "description": "Too Many Requests"
           },
           "500": {
             "description": "Internal Server Error",
@@ -698,6 +713,9 @@ func init() {
               "$ref": "#/definitions/ApiError"
             }
           },
+          "429": {
+            "description": "Too Many Requests"
+          },
           "500": {
             "description": "Internal Server Error",
             "schema": {
@@ -733,6 +751,9 @@ func init() {
             "schema": {
               "$ref": "#/definitions/ApiError"
             }
+          },
+          "429": {
+            "description": "Too Many Requests"
           },
           "500": {
             "description": "Internal Server Error",
@@ -772,6 +793,9 @@ func init() {
             "schema": {
               "$ref": "#/definitions/ApiError"
             }
+          },
+          "429": {
+            "description": "Too Many Requests"
           },
           "500": {
             "description": "Internal Server Error",
@@ -818,6 +842,9 @@ func init() {
               "$ref": "#/definitions/ApiError"
             }
           },
+          "429": {
+            "description": "Too Many Requests"
+          },
           "500": {
             "description": "Internal Server Error",
             "schema": {
@@ -851,6 +878,9 @@ func init() {
             "schema": {
               "$ref": "#/definitions/ApiError"
             }
+          },
+          "429": {
+            "description": "Too Many Requests"
           },
           "500": {
             "description": "Internal Server Error",

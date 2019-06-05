@@ -101,6 +101,30 @@ func (o *GetPaymentNotFound) WriteResponse(rw http.ResponseWriter, producer runt
 	}
 }
 
+// GetPaymentTooManyRequestsCode is the HTTP code returned for type GetPaymentTooManyRequests
+const GetPaymentTooManyRequestsCode int = 429
+
+/*GetPaymentTooManyRequests Too Many Requests
+
+swagger:response getPaymentTooManyRequests
+*/
+type GetPaymentTooManyRequests struct {
+}
+
+// NewGetPaymentTooManyRequests creates GetPaymentTooManyRequests with default headers values
+func NewGetPaymentTooManyRequests() *GetPaymentTooManyRequests {
+
+	return &GetPaymentTooManyRequests{}
+}
+
+// WriteResponse to the client
+func (o *GetPaymentTooManyRequests) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+
+	rw.Header().Del(runtime.HeaderContentType) //Remove Content-Type on empty responses
+
+	rw.WriteHeader(429)
+}
+
 // GetPaymentInternalServerErrorCode is the HTTP code returned for type GetPaymentInternalServerError
 const GetPaymentInternalServerErrorCode int = 500
 
