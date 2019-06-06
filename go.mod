@@ -17,5 +17,7 @@ require (
 	github.com/google/go-cmp v0.3.0
 	github.com/lib/pq v1.1.1
 	github.com/mitchellh/copystructure v1.0.0
+	github.com/prometheus/client_golang v0.9.3
+	github.com/slok/go-http-metrics v0.4.0
 	github.com/ulule/limiter/v3 v3.2.0
 )
