@@ -250,6 +250,7 @@ github.com/slok/go-http-metrics v0.4.0/go.mod h1:ZRJk+3AdSpQ0IUFseoCHaLE0Tpel+3n
 github.com/slok/go-prometheus-middleware v0.4.0/go.mod h1:dEbMQSF4RMuY7tG5XJVTxsHnqVs/AJqTJtpOFk7x/yo=
 github.com/spaolacci/murmur3 v0.0.0-20180118202830-f09979ecbc72/go.mod h1:JwIasOWyU6f++ZhiEuf87xNszmSA2myDM2Kzu9HwQUA=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
+github.com/stretchr/objx v0.1.1 h1:2vfRuCMp5sSVIDSqO8oNnWJq7mPa6KVP3iPIwFBuy8A=
 github.com/stretchr/objx v0.1.1/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
 github.com/stretchr/testify v1.3.0 h1:TivCn/peBQ7UY8ooIcPgZFpTNSz0Q2U6UrFlUfqbe0Q=
@@ -259,6 +260,8 @@ github.com/ugorji/go v1.1.1/go.mod h1:hnLbHMwcvSihnDhEfx2/BzKp2xb0Y+ErdfYcrs9tkJ
 github.com/ugorji/go/codec v0.0.0-20180831062425-e253f1f20942/go.mod h1:VFNgLljTbGfSG7qAOspJ7OScBnGdDN/yBr0sguwnwf0=
 github.com/ulule/limiter/v3 v3.2.0 h1:LVG8PirlwDZDVFHzWEqt5K2CTBrCVUKSpIhJ4yDHE7Y=
 github.com/ulule/limiter/v3 v3.2.0/go.mod h1:hgLFsUPxhPqrgqqLhtdhiwfI1PXAhq//DIrbANjAX5o=
+github.com/unrolled/recovery v0.0.0-20170109144926-b19e1efea904 h1:e9zUexNIJo01P0VOfb0KiiE50AWfN1YzDq3kuvuf7nk=
+github.com/unrolled/recovery v0.0.0-20170109144926-b19e1efea904/go.mod h1:KpJfrwoP/I2+S0o3Ywl0+HYSSDzkNw8UBSiMDvRFeSs=
 github.com/urfave/negroni v1.0.0/go.mod h1:Meg73S6kFm/4PpbYdq35yYWoCZ9mS/YSx+lKnmiohz4=
 github.com/xanzy/go-gitlab v0.15.0/go.mod h1:8zdQa/ri1dfn8eS3Ir1SyfvOKlw7WBJ8DVThkpGiXrs=
 github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c/go.mod h1:lB8K/P019DLNhemzwFU4jHLhdvlE6uDZjXFejJXr49I=

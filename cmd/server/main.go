@@ -12,9 +12,10 @@ import (
 
 func main() {
 	var dbHost, dbUser, dbPass, dbName, migrationsPath string
-	var port, rps, dbPort int
+	var port, dbPort int
+	var rps int64
 	flag.IntVar(&port, "port", 8080, "Port where the server is listening for connections.")
-	flag.IntVar(&rps, "rps", 100, "Rate limit expressed in requests per second (per client)")
+	flag.Int64Var(&rps, "rps", 100, "Rate limit expressed in requests per second (per client)")
 
 	flag.StringVar(&dbHost, "dbhost", "localhost", "Address of the server that hosts the DB")
 	flag.IntVar(&dbPort, "dbport", 5432, "Port where the DB server is listening for connections")
@@ -55,10 +56,11 @@ func main() {
 	}
 
 	apiHandler, prometheusHandler := newMeasuredHandler(apiHandler)
-	apiHandler, err = newRateLimitedHandler(int64(rps), apiHandler)
+	apiHandler, err = newRateLimitedHandler(rps, apiHandler)
 	if err != nil {
 		log.Panicf("Error creating rate limiter middleware: %v", err)
 	}
+	apiHandler = newRecoverableHandler(apiHandler)
 
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", prometheusHandler)
