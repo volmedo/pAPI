@@ -59,6 +59,7 @@ func main() {
 	if err != nil {
 		log.Panicf("Error creating rate limiter middleware: %v", err)
 	}
+	apiHandler = newRecoveredHandler(apiHandler)
 
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", prometheusHandler)
