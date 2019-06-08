@@ -39,6 +39,8 @@ TERRAFORM = docker run --rm -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -v "$(
 
 SRV_BIN_NAME ?= papisrv
 
+PAPI_IMG_TAG ?= 1.4.0
+
 swagger.validate:
 	$(SWAGGER) validate $(SPEC)
 	
@@ -77,6 +79,9 @@ test.integration:
 
 build:
 	GOOS=$(TARGET_OS) GOARCH=$(TARGET_ARCH) $(GO) build -o $(SRV_BIN_NAME) ./$(CMD)/server
+
+docker.build:
+	docker build -t volmedo/papi:$(PAPI_IMG_TAG) .
 
 test.e2e.local:
 	$(GO) build -o testsrv ./$(CMD)/server
