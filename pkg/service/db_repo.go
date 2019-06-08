@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/go-openapi/strfmt"
 	"github.com/golang-migrate/migrate/v4"
@@ -139,7 +140,8 @@ type DBPaymentRepository struct {
 // NewDBPaymentRepository creates a new DBPaymentRepository that uses a previously
 // configured sql.DB to connect to the DB
 func NewDBPaymentRepository(db *sql.DB, dbName, migrationsPath string) (*DBPaymentRepository, error) {
-	if err := db.Ping(); err != nil {
+
+	if err := pingDB(db); err != nil {
 		return nil, fmt.Errorf("db: pinging the DB didn't work: %v", err)
 	}
 
@@ -150,6 +152,19 @@ func NewDBPaymentRepository(db *sql.DB, dbName, migrationsPath string) (*DBPayme
 	}
 
 	return &DBPaymentRepository{db: db}, nil
+}
+
+// pingDB tries to connect to a DB, doing some retries just in case
+// the DB is not ready right now
+func pingDB(db *sql.DB) error {
+	max_retries := 5
+	err := db.Ping()
+	for i := 0; i < max_retries && err != nil; i++ {
+		time.Sleep(1 * time.Second)
+		err = db.Ping()
+	}
+
+	return err
 }
 
 // migrateDB updates the DB's schema to the latest version
