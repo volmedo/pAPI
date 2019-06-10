@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-config
+  labels:
+    app: papi
+data:
+  POSTGRES_DB: papi_db
+  POSTGRES_USER: papi_user
+  POSTGRES_PASSWORD: p4p1_p455

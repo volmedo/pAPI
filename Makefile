@@ -39,7 +39,9 @@ TERRAFORM = docker run --rm -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -v "$(
 
 SRV_BIN_NAME ?= papisrv
 
-PAPI_IMG_TAG ?= 1.4.0
+PAPI_IMG_TAG ?= test
+
+KIND_CLUSTER = papi
 
 swagger.validate:
 	$(SWAGGER) validate $(SPEC)
@@ -80,9 +82,6 @@ test.integration:
 build:
 	GOOS=$(TARGET_OS) GOARCH=$(TARGET_ARCH) $(GO) build -o $(SRV_BIN_NAME) ./$(CMD)/server
 
-docker.build:
-	docker build -t volmedo/papi:$(PAPI_IMG_TAG) .
-
 test.e2e.local:
 	$(GO) build -o testsrv ./$(CMD)/server
 	$(POSTGRES_START)
@@ -101,6 +100,30 @@ test.e2e.local:
 	kill $$SERVER_PID ;\
 	rm testsrv ;\
 	$(POSTGRES_STOP) ;\
+	exit $$TEST_RESULT
+
+docker.build:
+	docker build -t volmedo/papi:$(PAPI_IMG_TAG) .
+
+docker.push:
+	docker push volmedo/papi:$(PAPI_IMG_TAG)
+
+test.e2e.k8s:
+	kind create cluster --name $(KIND_CLUSTER) --wait 5m
+	export KUBECONFIG="$$(kind get kubeconfig-path --name $(KIND_CLUSTER))" ;\
+	kubectl apply -f k8s/config-maps.yml -f k8s/pAPI.yml ;\
+	kubectl wait --for condition=Ready pod -l tier=backend ;\
+	kubectl proxy --port=8000 & \
+	PROXY_PID=$$! ;\
+	$(GO) test -v -race ./$(E2E) \
+		-host=localhost \
+		-port=8000 \
+		-base-path=/api/v1/namespaces/default/services/api/proxy/v1 ;\
+	TEST_RESULT=$$? ;\
+	kill $$PROXY_PID ;\
+	kubectl delete -f k8s/config-maps.yml -f k8s/pAPI.yml ;\
+	unset KUBECONFIG ;\
+	kind delete cluster --name $(KIND_CLUSTER) ;\
 	exit $$TEST_RESULT
 
 test.e2e:
@@ -169,7 +192,8 @@ clean:
 
 .PHONY: $(patsubst %,swagger.%,validate clean generate.client generate.server)
 .PHONY: lint
-.PHONY: $(patsubst %,test.%,unit integration e2e.local e2e)
+.PHONY: $(patsubst %,test.%,unit integration e2e.local e2e.k8s e2e)
+.PHONY: $(patsubst %,docker.%,build push)
 .PHONY: $(patsubst %,terraform.%,keygen init chkfmt validate apply output destroy)
 .PHONY: clean
 
