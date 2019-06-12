@@ -63,6 +63,7 @@ func main() {
 	apiHandler = newRecoverableHandler(apiHandler)
 
 	mux := http.NewServeMux()
+	mux.Handle("/health", newHealthHandler(db))
 	mux.Handle("/metrics", prometheusHandler)
 	mux.Handle("/", apiHandler)
 

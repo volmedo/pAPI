@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"time"
@@ -56,4 +57,21 @@ func newRateLimitedHandler(rps int64, handler http.Handler) (http.Handler, error
 func newRecoverableHandler(handler http.Handler) http.Handler {
 	rec := recovery.New()
 	return rec.Handler(handler)
+}
+
+// newHealthHandler returns a basic health endpoint that can be used in readiness
+// and liveness probes. It checks moving parts to report general availability
+// of the service (currently, the connection with the DB is the only moving part).
+// The health endpoint returns a 200 response when the service is available
+// and a 500 one when it is not working correctly
+func newHealthHandler(db *sql.DB) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := db.Ping(); err != nil {
+			w.WriteHeader(500)
+			fmt.Fprintf(w, "cannot connect with DB: %v", err)
+		} else {
+			w.WriteHeader(200)
+			fmt.Fprint(w, "ok")
+		}
+	})
 }

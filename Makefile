@@ -61,6 +61,7 @@ lint:
 
 test.unit:
 	$(GO) test -v -race ./$(PKG)/service
+	$(GO) test -v -race ./$(CMD)/server
 
 # The exit code of the test command is saved in a variable to call POSTGRES_STOP
 # no matter if tests fails or not but make the final exit code of the command depend
