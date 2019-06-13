@@ -16,7 +16,7 @@ func TestHealth(t *testing.T) {
 		t.Fatalf("Error creating mock connection: %v", err)
 	}
 
-	badConn, err := sql.Open("postgres", "")
+	badConn, err := sql.Open("postgres", "host=bad.host")
 	if err != nil {
 		t.Fatalf("Error creating bad connection: %v", err)
 	}
