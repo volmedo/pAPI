@@ -13,9 +13,6 @@ TARGET_ARCH ?= amd64
 SWAGGER_VER ?= v0.19.0
 SWAGGER = docker run --rm -e GOPATH=/go -v "$(PWD)":"$(PWD)" -w "$(PWD)" quay.io/goswagger/swagger:$(SWAGGER_VER)
 
-GOLANGCI_LINT_VER ?= v1.16.0
-GOLANGCI_LINT = docker run --rm -v "$(PWD)":"$(PWD)" -w "$(PWD)" golangci/golangci-lint:$(GOLANGCI_LINT_VER)
-
 POSTGRES_VER ?= 11.3-alpine
 CONTAINER_NAME = db
 DB_HOST ?= localhost
@@ -57,7 +54,7 @@ swagger.generate.client:
 	$(SWAGGER) generate client --spec=$(SPEC) --template=stratoscale --target=$(PKG) --skip-models
 
 lint:
-	$(GOLANGCI_LINT) golangci-lint run --no-config --skip-dirs "$(PKG)/(client|models|restapi)" --deadline 2m
+	golangci-lint run --no-config --skip-dirs "$(PKG)/(client|models|restapi)" --deadline 2m
 
 test.unit:
 	$(GO) test -v -race ./$(PKG)/service

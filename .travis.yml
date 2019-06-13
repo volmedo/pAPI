@@ -12,11 +12,12 @@ services:
   - docker
 
 env:
-  - GO111MODULE=on KIND_VER=v0.3.0
+  - GO111MODULE=on LINT_VER=v1.17.1 KIND_VER=v0.3.0
 
 jobs:
   include:
     - stage: lint
+      install: curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin $LINT_VER
       script: make lint
     - stage: unit and integration tests
       script:
