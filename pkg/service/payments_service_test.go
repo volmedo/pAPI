@@ -208,12 +208,15 @@ func TestPaymentsService(t *testing.T) {
 				return
 			}
 
-			diff, err := compareResponses(rr.Body, tc.wantResp)
+			dataDiff, linksDiff, err := compareResponses(rr.Body, tc.wantResp)
 			if err != nil {
 				t.Fatal(err.Error())
 			}
-			if diff != "" {
-				t.Fatalf("Payment data mismatch:\n%s", diff)
+			if dataDiff != "" {
+				t.Fatalf("Payment data mismatch:\n%s", dataDiff)
+			}
+			if linksDiff != "" {
+				t.Fatalf("Link objects mismatch:\n%s", linksDiff)
 			}
 		})
 	}
@@ -260,55 +263,65 @@ func doRequest(ps *service.PaymentsService, params interface{}) (*httptest.Respo
 	return rr, nil
 }
 
-func compareResponses(body io.Reader, wantResp interface{}) (string, error) {
-	decoder := json.NewDecoder(body)
+func compareResponses(gotBody io.Reader, wantResp interface{}) (dataDiff, linksDiff string, e error) {
+	decoder := json.NewDecoder(gotBody)
 	// Use maps to allow direct comparison, independent of element order
-	want := make(map[strfmt.UUID]*models.Payment)
-	got := make(map[strfmt.UUID]*models.Payment)
+	wantData := make(map[strfmt.UUID]*models.Payment)
+	var wantLinks *models.Links
+	gotData := make(map[strfmt.UUID]*models.Payment)
+	var gotLinks *models.Links
 	var err error
 	switch resp := wantResp.(type) {
 	case *models.PaymentCreationResponse:
-		want[*resp.Data.ID] = resp.Data
+		wantData[*resp.Data.ID] = resp.Data
+		wantLinks = resp.Links
 		var gotResp models.PaymentCreationResponse
 		err = decoder.Decode(&gotResp)
 		if err != nil {
-			return "", fmt.Errorf("Malformed JSON in response: %v", err)
+			return "", "", fmt.Errorf("Malformed JSON in response: %v", err)
 		}
-		got[*gotResp.Data.ID] = gotResp.Data
+		gotData[*gotResp.Data.ID] = gotResp.Data
+		gotLinks = gotResp.Links
 
 	case *models.PaymentDetailsResponse:
-		want[*resp.Data.ID] = resp.Data
+		wantData[*resp.Data.ID] = resp.Data
+		wantLinks = resp.Links
 		var gotResp models.PaymentCreationResponse
 		err = decoder.Decode(&gotResp)
 		if err != nil {
-			return "", fmt.Errorf("Malformed JSON in response: %v", err)
+			return "", "", fmt.Errorf("Malformed JSON in response: %v", err)
 		}
-		got[*gotResp.Data.ID] = gotResp.Data
+		gotData[*gotResp.Data.ID] = gotResp.Data
+		gotLinks = gotResp.Links
 
 	case *models.PaymentUpdateResponse:
-		want[*resp.Data.ID] = resp.Data
+		wantData[*resp.Data.ID] = resp.Data
+		wantLinks = resp.Links
 		var gotResp models.PaymentCreationResponse
 		err = decoder.Decode(&gotResp)
 		if err != nil {
-			return "", fmt.Errorf("Malformed JSON in response: %v", err)
+			return "", "", fmt.Errorf("Malformed JSON in response: %v", err)
 		}
-		got[*gotResp.Data.ID] = gotResp.Data
+		gotData[*gotResp.Data.ID] = gotResp.Data
+		gotLinks = gotResp.Links
 
 	case *models.PaymentDetailsListResponse:
 		for _, payment := range resp.Data {
-			want[*payment.ID] = payment
+			wantData[*payment.ID] = payment
 		}
+		wantLinks = resp.Links
 		var gotResp models.PaymentDetailsListResponse
 		err = decoder.Decode(&gotResp)
 		if err != nil {
-			return "", fmt.Errorf("Malformed JSON in response: %v", err)
+			return "", "", fmt.Errorf("Malformed JSON in response: %v", err)
 		}
 		for _, payment := range gotResp.Data {
-			got[*payment.ID] = payment
+			gotData[*payment.ID] = payment
 		}
+		gotLinks = gotResp.Links
 
 	default:
-		return "", fmt.Errorf("Unable to decode response, unkwnown type: %T", resp)
+		return "", "", fmt.Errorf("Unable to decode response, unkwnown type: %T", resp)
 	}
 
 	// go-cmp requires a custom comparer for strfmt.Date because it has unexported fields
@@ -316,19 +329,28 @@ func compareResponses(body io.Reader, wantResp interface{}) (string, error) {
 	dateComparer := cmp.Comparer(func(d1, d2 strfmt.Date) bool {
 		return d1.String() == d2.String()
 	})
-	diff := cmp.Diff(got, want, dateComparer)
+	dataDiff = cmp.Diff(gotData, wantData, dateComparer)
+	linksDiff = cmp.Diff(gotLinks, wantLinks)
 
-	return diff, nil
+	return dataDiff, linksDiff, nil
 }
 
 func createTests() []TestCase {
+	req := httptest.NewRequest("POST", "/payments", nil)
 	setupData := []*models.Payment{&testPayment}
 	params := payments.CreatePaymentParams{
+		HTTPRequest: 			req,
 		PaymentCreationRequest: &models.PaymentCreationRequest{Data: &testPayment},
 	}
 	wantPayment := copyPayment(&testPayment)
 	wantPayment.Type = service.TYPE_PAYMENT
-	wantResp := &models.PaymentCreationResponse{Data: wantPayment}
+	wantLinks := &models.Links{
+		Self: fmt.Sprintf("/payments/%s", testPayment.ID),
+	}
+	wantResp := &models.PaymentCreationResponse{
+		Data:  wantPayment,
+		Links: wantLinks,
+	}
 	return []TestCase{
 		{
 			name:      "create",
@@ -347,11 +369,21 @@ func createTests() []TestCase {
 }
 
 func getTests() []TestCase {
+	req := httptest.NewRequest("GET", fmt.Sprintf("/payments/%s", testPayment.ID), nil)
 	setupData := []*models.Payment{&testPayment}
-	params := payments.GetPaymentParams{ID: *testPayment.ID}
+	params := payments.GetPaymentParams{
+		HTTPRequest: req,
+		ID: 		 *testPayment.ID,
+	}
 	wantPayment := copyPayment(&testPayment)
 	wantPayment.Type = service.TYPE_PAYMENT
-	wantResp := &models.PaymentDetailsResponse{Data: wantPayment}
+	wantLinks := &models.Links{
+		Self: fmt.Sprintf("/payments/%s", testPayment.ID),
+	}
+	wantResp := &models.PaymentDetailsResponse{
+		Data:  wantPayment,
+		Links: wantLinks,
+	}
 	return []TestCase{
 		{
 			name:      "get",
@@ -370,8 +402,12 @@ func getTests() []TestCase {
 }
 
 func deleteTests() []TestCase {
+	req := httptest.NewRequest("DELETE", fmt.Sprintf("/payments/%s", testPayment.ID), nil)
 	setupData := []*models.Payment{&testPayment}
-	params := payments.DeletePaymentParams{ID: *testPayment.ID}
+	params := payments.DeletePaymentParams{
+		HTTPRequest: req,
+		ID: 		 *testPayment.ID,
+	}
 	return []TestCase{
 		{
 			name:      "delete",
@@ -390,6 +426,7 @@ func deleteTests() []TestCase {
 }
 
 func updateTests() []TestCase {
+	req := httptest.NewRequest("PUT", fmt.Sprintf("/payments/%s", testPayment.ID), nil)
 	setupData := []*models.Payment{&testPayment}
 
 	updatedPayment := copyPayment(&testPayment)
@@ -397,6 +434,7 @@ func updateTests() []TestCase {
 	updatedPayment.Attributes.Fx.OriginalAmount = models.Amount("300.00")
 	updatedPayment.Attributes.PaymentID = "123456789012345679"
 	params := payments.UpdatePaymentParams{
+		HTTPRequest:		  req,
 		ID:                   *updatedPayment.ID,
 		PaymentUpdateRequest: &models.PaymentUpdateRequest{Data: updatedPayment},
 	}
@@ -406,7 +444,13 @@ func updateTests() []TestCase {
 	wantVersion := *wantPayment.Version
 	wantVersion += 1
 	wantPayment.Version = &wantVersion
-	wantResp := &models.PaymentUpdateResponse{Data: wantPayment}
+	wantLinks := &models.Links{
+		Self: fmt.Sprintf("/payments/%s", testPayment.ID),
+	}
+	wantResp := &models.PaymentUpdateResponse{
+		Data:  wantPayment,
+		Links: wantLinks,
+	}
 	return []TestCase{
 		{
 			name:      "update",
@@ -444,6 +488,10 @@ func listTests() []TestCase {
 		setupData = append(setupData, payment)
 	}
 
+	wantLinks := &models.Links{
+		Self:  "/payments",
+	}
+
 	newParams := func(pNum, pSize *int64) payments.ListPaymentsParams {
 		params := payments.NewListPaymentsParams()
 		if pNum != nil {
@@ -456,13 +504,18 @@ func listTests() []TestCase {
 		return params
 	}
 
+	// noParams
+	// pageNumber defaults to 0 and pageSize defaults to 10 according to spec
 	params := newParams(nil, nil)
-	noParams := TestCase{ // pageNumber defaults to 0 and pageSize defaults to 10 according to spec
+	noParams := TestCase{
 		name:      "list",
 		setupData: setupData,
 		params:    params,
 		wantCode:  http.StatusOK,
-		wantResp:  &models.PaymentDetailsListResponse{Data: setupData[:10]},
+		wantResp:  &models.PaymentDetailsListResponse{
+			Data: setupData[:10],
+			Links: wantLinks,
+		},
 	}
 
 	pageSize := new(int64)
@@ -473,7 +526,10 @@ func listTests() []TestCase {
 		setupData: setupData,
 		params:    params,
 		wantCode:  http.StatusOK,
-		wantResp:  &models.PaymentDetailsListResponse{Data: setupData[:5]},
+		wantResp:  &models.PaymentDetailsListResponse{
+			Data: setupData[:5],
+			Links: wantLinks,
+		},
 	}
 
 	pageNumber := new(int64)
@@ -486,7 +542,10 @@ func listTests() []TestCase {
 		setupData: setupData,
 		params:    params,
 		wantCode:  http.StatusOK,
-		wantResp:  &models.PaymentDetailsListResponse{Data: setupData[9:12]},
+		wantResp:  &models.PaymentDetailsListResponse{
+			Data: setupData[9:12],
+			Links: wantLinks,
+		},
 	}
 
 	pageNumber = new(int64)
@@ -499,7 +558,10 @@ func listTests() []TestCase {
 		setupData: setupData,
 		params:    params,
 		wantCode:  http.StatusOK,
-		wantResp:  &models.PaymentDetailsListResponse{Data: setupData[18:]},
+		wantResp:  &models.PaymentDetailsListResponse{
+			Data: setupData[18:],
+			Links: wantLinks,
+		},
 	}
 
 	pageNumber = new(int64)
@@ -510,7 +572,10 @@ func listTests() []TestCase {
 		setupData: setupData,
 		params:    params,
 		wantCode:  http.StatusOK,
-		wantResp:  &models.PaymentDetailsListResponse{Data: setupData[10:]},
+		wantResp:  &models.PaymentDetailsListResponse{
+			Data: setupData[10:],
+			Links: wantLinks,
+		},
 	}
 
 	pageNumber = new(int64)

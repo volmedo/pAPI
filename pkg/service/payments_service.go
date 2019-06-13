@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/strfmt"
@@ -30,7 +31,10 @@ func (papi *PaymentsService) CreatePayment(ctx context.Context, params payments.
 		return payments.NewCreatePaymentInternalServerError().WithPayload(apiError)
 	}
 
-	resp := &models.PaymentCreationResponse{Data: created}
+	links := &models.Links{
+		Self: fmt.Sprintf("%s/%s", params.HTTPRequest.URL.Path, created.ID),
+	}
+	resp := &models.PaymentCreationResponse{Data: created, Links: links}
 	return payments.NewCreatePaymentCreated().WithPayload(resp)
 }
 
@@ -63,7 +67,10 @@ func (papi *PaymentsService) GetPayment(ctx context.Context, params payments.Get
 		return payments.NewGetPaymentInternalServerError().WithPayload(apiError)
 	}
 
-	resp := &models.PaymentDetailsResponse{Data: got}
+	links := &models.Links{
+		Self: params.HTTPRequest.URL.Path,
+	}
+	resp := &models.PaymentDetailsResponse{Data: got, Links: links}
 	return payments.NewGetPaymentOK().WithPayload(resp)
 }
 
@@ -85,7 +92,13 @@ func (papi *PaymentsService) ListPayments(ctx context.Context, params payments.L
 		return payments.NewListPaymentsInternalServerError().WithPayload(apiError)
 	}
 
-	resp := &models.PaymentDetailsListResponse{Data: list}
+	links := &models.Links{
+		Self: "/payments",
+	}
+	resp := &models.PaymentDetailsListResponse{
+		Data:  list,
+		Links: links,
+	}
 	return payments.NewListPaymentsOK().WithPayload(resp)
 }
 
@@ -103,7 +116,10 @@ func (papi *PaymentsService) UpdatePayment(ctx context.Context, params payments.
 		return payments.NewUpdatePaymentInternalServerError().WithPayload(apiError)
 	}
 
-	resp := &models.PaymentUpdateResponse{Data: updated}
+	links := &models.Links{
+		Self: params.HTTPRequest.URL.Path,
+	}
+	resp := &models.PaymentUpdateResponse{Data: updated, Links: links}
 	return payments.NewUpdatePaymentOK().WithPayload(resp)
 }
 
