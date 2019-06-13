@@ -36,9 +36,22 @@ spec:
           image: postgres:11.3-alpine
           ports:
             - containerPort: 5432
-          envFrom:
-            - configMapRef:
-                name: db-config
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: db-config
+                  key: dbname
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: db-creds
+                  key: user
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-creds
+                  key: pass
 ---
 apiVersion: v1
 kind: Service
@@ -77,14 +90,33 @@ spec:
         - name: server
           image: volmedo/papi:test
           imagePullPolicy: Always
-          args:
-            [
-              "-port=8080",
-              "-dbhost=db",
-              "-dbport=5432",
-              "-dbuser=papi_user",
-              "-dbpass=p4p1_p455",
-              "-dbname=papi_db",
-            ]
+          env:
+            - name: PAPI_PORT
+              value: "8080"
+            - name: PAPI_DBHOST
+              valueFrom:
+                configMapKeyRef:
+                  name: db-config
+                  key: host
+            - name: PAPI_DBPORT
+              valueFrom:
+                configMapKeyRef:
+                  name: db-config
+                  key: port
+            - name: PAPI_DBUSER
+              valueFrom:
+                secretKeyRef:
+                  name: db-creds
+                  key: user
+            - name: PAPI_DBPASS
+              valueFrom:
+                secretKeyRef:
+                  name: db-creds
+                  key: pass
+            - name: PAPI_DBNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: db-config
+                  key: dbname
           ports:
             - containerPort: 8080

@@ -112,7 +112,7 @@ docker.push:
 test.e2e.k8s:
 	kind create cluster --name $(KIND_CLUSTER) --wait 5m
 	export KUBECONFIG="$$(kind get kubeconfig-path --name $(KIND_CLUSTER))" ;\
-	kubectl apply -f k8s/config-maps.yml -f k8s/pAPI.yml ;\
+	kubectl apply -f k8s/ ;\
 	kubectl wait --for condition=Ready pod -l tier=backend ;\
 	PROXY_PORT=8000 ;\
 	kubectl proxy --port=$$PROXY_PORT & \
@@ -124,7 +124,7 @@ test.e2e.k8s:
 		-health-path=/api/v1/namespaces/default/services/api/proxy/health ;\
 	TEST_RESULT=$$? ;\
 	kill $$PROXY_PID ;\
-	kubectl delete -f k8s/config-maps.yml -f k8s/pAPI.yml ;\
+	kubectl delete -f k8s/ ;\
 	unset KUBECONFIG ;\
 	kind delete cluster --name $(KIND_CLUSTER) ;\
 	exit $$TEST_RESULT

@@ -5,6 +5,6 @@ metadata:
   labels:
     app: papi
 data:
-  POSTGRES_DB: papi_db
-  POSTGRES_USER: papi_user
-  POSTGRES_PASSWORD: p4p1_p455
+  host: db
+  port: "5432"
+  dbname: papi_db
