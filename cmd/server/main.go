@@ -1,10 +1,12 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+
+	"github.com/namsral/flag"
 
 	"github.com/volmedo/pAPI/pkg/restapi"
 	"github.com/volmedo/pAPI/pkg/service"
@@ -14,17 +16,22 @@ func main() {
 	var dbHost, dbUser, dbPass, dbName, migrationsPath string
 	var port, dbPort int
 	var rps int64
-	flag.IntVar(&port, "port", 8080, "Port where the server is listening for connections.")
-	flag.Int64Var(&rps, "rps", 100, "Rate limit expressed in requests per second (per client)")
 
-	flag.StringVar(&dbHost, "dbhost", "localhost", "Address of the server that hosts the DB")
-	flag.IntVar(&dbPort, "dbport", 5432, "Port where the DB server is listening for connections")
-	flag.StringVar(&dbUser, "dbuser", "postgres", "User to use when accessing the DB")
-	flag.StringVar(&dbPass, "dbpass", "postgres", "Password to use when accessing the DB")
-	flag.StringVar(&dbName, "dbname", "postgres", "Name of the DB to connect to")
-	flag.StringVar(&migrationsPath, "migrations", "./migrations", "Path to the folder that contains the migration files")
+	// Use "PAPI" as prefix for env variables to avoid potential clashes
+	fs := flag.NewFlagSetWithEnvPrefix(os.Args[0], "PAPI", flag.ExitOnError)
 
-	flag.Parse()
+	fs.IntVar(&port, "port", 8080, "Port where the server is listening for connections.")
+	fs.Int64Var(&rps, "rps", 100, "Rate limit expressed in requests per second (per client)")
+
+	fs.StringVar(&dbHost, "dbhost", "localhost", "Address of the server that hosts the DB")
+	fs.IntVar(&dbPort, "dbport", 5432, "Port where the DB server is listening for connections")
+	fs.StringVar(&dbUser, "dbuser", "postgres", "User to use when accessing the DB")
+	fs.StringVar(&dbPass, "dbpass", "postgres", "Password to use when accessing the DB")
+	fs.StringVar(&dbName, "dbname", "postgres", "Name of the DB to connect to")
+	fs.StringVar(&migrationsPath, "migrations", "./migrations", "Path to the folder that contains the migration files")
+
+	// Ignore errors; fs is set for ExitOnError
+	_ = fs.Parse(os.Args[1:])
 
 	// Setup DB
 	dbConf := &service.DBConfig{
@@ -63,6 +70,7 @@ func main() {
 	apiHandler = newRecoverableHandler(apiHandler)
 
 	mux := http.NewServeMux()
+	mux.Handle("/health", newHealthHandler(db))
 	mux.Handle("/metrics", prometheusHandler)
 	mux.Handle("/", apiHandler)
 

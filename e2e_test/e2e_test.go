@@ -7,6 +7,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"reflect"
@@ -24,10 +25,11 @@ import (
 )
 
 var (
-	scheme   string
-	host     string
-	port     int
-	basePath string
+	scheme     string
+	host       string
+	port       int
+	apiPath    string
+	healthPath string
 
 	opt = godog.Options{
 		Output: colors.Colored(os.Stdout),
@@ -44,13 +46,19 @@ type Client struct {
 	lastResponse  interface{}
 	lastError     error
 	registeredIDs map[strfmt.UUID]struct{} // This property allows for cleaning after each scenario
+	healthURL     *url.URL
 }
 
-func newClient(apiURL *url.URL) *Client {
+func newClient(apiURL, healthURL *url.URL) *Client {
 	conf := client.Config{URL: apiURL}
 	payments := client.New(conf)
 	registeredIDs := make(map[strfmt.UUID]struct{})
-	return &Client{payments.Payments, nil, nil, registeredIDs}
+	return &Client{
+		Client:        payments.Payments,
+		lastResponse:  nil,
+		lastError:     nil,
+		registeredIDs: registeredIDs,
+		healthURL:     healthURL}
 }
 
 func (c *Client) thereArePaymentsWithIDs(ids *gherkin.DataTable) error {
@@ -299,11 +307,27 @@ func (c *Client) theResponseContainsAListOfPaymentsWithIDs(ids *gherkin.DataTabl
 	return nil
 }
 
+// ping checks if the API is ready by sending a request to its health endpoint
+func (c *Client) ping() error {
+	resp, err := http.Get(c.healthURL.String())
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return errors.New("API not available")
+	}
+
+	return nil
+}
+
 func TestMain(m *testing.M) {
 	flag.StringVar(&scheme, "scheme", "http", "Scheme to use to communicate with the server ('http' or 'https')")
 	flag.StringVar(&host, "host", client.DefaultHost, "Address or URL of the server serving the Payments API (such as 'localhost' or 'api.example.com')")
 	flag.IntVar(&port, "port", 8080, "Port where the server is listening for connections")
-	flag.StringVar(&basePath, "base-path", client.DefaultBasePath, "Base path for API endpoints")
+	flag.StringVar(&apiPath, "api-path", client.DefaultBasePath, "Base path for API endpoints")
+	flag.StringVar(&healthPath, "health-path", "/health", "Path to the API's health endpoint")
 
 	flag.Parse()
 	opt.Paths = flag.Args()
@@ -322,9 +346,14 @@ func FeatureContext(s *godog.Suite) {
 	apiURL := &url.URL{
 		Scheme: scheme,
 		Host:   fmt.Sprintf("%s:%d", host, port),
-		Path:   basePath,
+		Path:   apiPath,
 	}
-	client := newClient(apiURL)
+	healthURL := &url.URL{
+		Scheme: scheme,
+		Host:   fmt.Sprintf("%s:%d", host, port),
+		Path:   healthPath,
+	}
+	client := newClient(apiURL, healthURL)
 
 	s.Step(`^there are payments with IDs:$`, client.thereArePaymentsWithIDs)
 	s.Step(`^the response contains a list of payments with the following IDs:$`, client.theResponseContainsAListOfPaymentsWithIDs)
@@ -337,6 +366,20 @@ func FeatureContext(s *godog.Suite) {
 	s.Step(`^I request a list of payments, page (\d+) with (\d+) payments per page$`, client.iRequestAListOfPaymentsPageWithPaymentsPerPage)
 	s.Step(`^I get a[n]? "([^"]*)" response$`, client.iGetAResponse)
 	s.Step(`^the response contains a payment described in JSON as:$`, client.theResponseContainsAPaymentDescribedInJSONAs)
+
+	// Wait for the application to settle before running the test suite
+	s.BeforeSuite(func() {
+		max_retries := 20
+		err := client.ping()
+		for i := 0; i < max_retries && err != nil; i++ {
+			time.Sleep(1 * time.Second)
+			err = client.ping()
+		}
+
+		if err != nil {
+			panic(fmt.Sprintf("API is not ready after %d seconds: %v", max_retries, err))
+		}
+	})
 
 	// Ensure there are no payments in the server before each scenario
 	s.BeforeScenario(func(interface{}) {

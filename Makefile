@@ -39,6 +39,10 @@ TERRAFORM = docker run --rm -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -v "$(
 
 SRV_BIN_NAME ?= papisrv
 
+PAPI_IMG_TAG ?= test
+
+KIND_CLUSTER = papi
+
 swagger.validate:
 	$(SWAGGER) validate $(SPEC)
 	
@@ -57,6 +61,7 @@ lint:
 
 test.unit:
 	$(GO) test -v -race ./$(PKG)/service
+	$(GO) test -v -race ./$(CMD)/server
 
 # The exit code of the test command is saved in a variable to call POSTGRES_STOP
 # no matter if tests fails or not but make the final exit code of the command depend
@@ -96,6 +101,32 @@ test.e2e.local:
 	kill $$SERVER_PID ;\
 	rm testsrv ;\
 	$(POSTGRES_STOP) ;\
+	exit $$TEST_RESULT
+
+docker.build:
+	docker build -t volmedo/papi:$(PAPI_IMG_TAG) .
+
+docker.push:
+	docker push volmedo/papi:$(PAPI_IMG_TAG)
+
+test.e2e.k8s:
+	kind create cluster --name $(KIND_CLUSTER) --wait 5m
+	export KUBECONFIG="$$(kind get kubeconfig-path --name $(KIND_CLUSTER))" ;\
+	kubectl apply -f k8s/ ;\
+	kubectl wait --for condition=Ready pod -l tier=backend ;\
+	PROXY_PORT=8000 ;\
+	kubectl proxy --port=$$PROXY_PORT & \
+	PROXY_PID=$$! ;\
+	$(GO) test -v -race ./$(E2E) \
+		-host=localhost \
+		-port=$$PROXY_PORT \
+		-api-path=/api/v1/namespaces/default/services/api/proxy/v1 \
+		-health-path=/api/v1/namespaces/default/services/api/proxy/health ;\
+	TEST_RESULT=$$? ;\
+	kill $$PROXY_PID ;\
+	kubectl delete -f k8s/ ;\
+	unset KUBECONFIG ;\
+	kind delete cluster --name $(KIND_CLUSTER) ;\
 	exit $$TEST_RESULT
 
 test.e2e:
@@ -164,7 +195,8 @@ clean:
 
 .PHONY: $(patsubst %,swagger.%,validate clean generate.client generate.server)
 .PHONY: lint
-.PHONY: $(patsubst %,test.%,unit integration e2e.local e2e)
+.PHONY: $(patsubst %,test.%,unit integration e2e.local e2e.k8s e2e)
+.PHONY: $(patsubst %,docker.%,build push)
 .PHONY: $(patsubst %,terraform.%,keygen init chkfmt validate apply output destroy)
 .PHONY: clean
 
