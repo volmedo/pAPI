@@ -37,6 +37,7 @@ jobs:
         - kubectl version --client --short
       script: make test.e2e.k8s
     - stage: e2e tests (AWS)
+      if: branch = master
       script:
         - make build
         - make terraform.chkfmt
