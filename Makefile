@@ -114,12 +114,14 @@ test.e2e.k8s:
 	export KUBECONFIG="$$(kind get kubeconfig-path --name $(KIND_CLUSTER))" ;\
 	kubectl apply -f k8s/config-maps.yml -f k8s/pAPI.yml ;\
 	kubectl wait --for condition=Ready pod -l tier=backend ;\
-	kubectl proxy --port=8000 & \
+	PROXY_PORT=8000 ;\
+	kubectl proxy --port=$$PROXY_PORT & \
 	PROXY_PID=$$! ;\
 	$(GO) test -v -race ./$(E2E) \
 		-host=localhost \
-		-port=8000 \
-		-base-path=/api/v1/namespaces/default/services/api/proxy/v1 ;\
+		-port=$$PROXY_PORT \
+		-api-path=/api/v1/namespaces/default/services/api/proxy/v1 \
+		-health-path=/api/v1/namespaces/default/services/api/proxy/health ;\
 	TEST_RESULT=$$? ;\
 	kill $$PROXY_PID ;\
 	kubectl delete -f k8s/config-maps.yml -f k8s/pAPI.yml ;\
