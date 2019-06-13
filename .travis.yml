@@ -10,6 +10,7 @@ cache:
 
 services:
   - docker
+  - postgresql
 
 env:
   - GO111MODULE=on LINT_VER=v1.17.1 KIND_VER=v0.3.0
@@ -20,6 +21,9 @@ jobs:
       install: curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin $LINT_VER
       script: make lint
     - stage: unit and integration tests
+      before_script:
+        - psql -c "CREATE DATABASE papi_db;" -U postgres
+        - psql -c "CREATE USER papi_user WITH PASSWORD 'p4p1_p455';" -U postgres
       script:
         - make test.unit
         - make test.integration

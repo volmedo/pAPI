@@ -16,7 +16,7 @@ SWAGGER = docker run --rm -e GOPATH=/go -v "$(PWD)":"$(PWD)" -w "$(PWD)" quay.io
 POSTGRES_VER ?= 11.3-alpine
 CONTAINER_NAME = db
 DB_HOST ?= localhost
-DB_PORT ?= 54321
+DB_PORT ?= 5432
 DB_USER ?= papi_user
 DB_PASS ?= papi_test_pass
 DB_NAME ?= papi_db
@@ -64,8 +64,10 @@ test.unit:
 # no matter if tests fails or not but make the final exit code of the command depend
 # on the result of tests, so that the step fails in CI if tests fail
 test.integration:
-	$(POSTGRES_START)
-	$(POSTGRES_WAIT)
+	if [ -z $$CI ]; then \
+		$(POSTGRES_START) ;\
+		$(POSTGRES_WAIT) ;\
+	fi ;\
 	$(GO) test -v -race -tags=integration ./$(PKG)/service \
 		-dbhost=$(DB_HOST) \
 		-dbport=$(DB_PORT) \
@@ -74,7 +76,9 @@ test.integration:
 		-dbname=$(DB_NAME) \
 		-migrations=./migrations ;\
 	TEST_RESULT=$$? ;\
-	$(POSTGRES_STOP) ;\
+	if [ -z $$CI ]; then \
+		$(POSTGRES_STOP) ;\
+	fi ;\
 	exit $$TEST_RESULT
 
 build:
@@ -82,8 +86,10 @@ build:
 
 test.e2e.local:
 	$(GO) build -o testsrv ./$(CMD)/server
-	$(POSTGRES_START)
-	$(POSTGRES_WAIT)
+	if [ -z $$CI ]; then \
+		$(POSTGRES_START) ;\
+		$(POSTGRES_WAIT) ;\
+	fi ;\
 	./testsrv \
 		-port=8080 \
 		-dbhost=$(DB_HOST) \
@@ -97,7 +103,9 @@ test.e2e.local:
 	TEST_RESULT=$$? ;\
 	kill $$SERVER_PID ;\
 	rm testsrv ;\
-	$(POSTGRES_STOP) ;\
+	if [ -z $$CI ]; then \
+		$(POSTGRES_STOP) ;\
+	fi ;\
 	exit $$TEST_RESULT
 
 docker.build:
