@@ -14,29 +14,35 @@ services:
 env:
   - GO111MODULE=on KIND_VER=v0.3.0
 
-install:
-  - curl -Lo $HOME/bin/kind https://github.com/kubernetes-sigs/kind/releases/download/$KIND_VER/kind-linux-amd64
-  - chmod +x $HOME/bin/kind
-  - kind version
-  - curl -Lo $HOME/bin/kubectl https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
-  - chmod +x $HOME/bin/kubectl
-  - kubectl version --client --short
-
-before_script:
-  - docker login --username $DOCKER_USERNAME --password $DOCKER_PASSWORD
-
-script:
-  - make lint
-  - make test.unit
-  - make test.integration
-  - make build
-  - make docker.build
-  - make docker.push
-  - make test.e2e.k8s
-  - make terraform.chkfmt
-  - make terraform.init
-  - make terraform.keygen
-  - make terraform.validate
-  - make terraform.apply
-  - make test.e2e
-  - make terraform.destroy
+jobs:
+  include:
+    - stage: lint
+      script: make lint
+    - stage: unit and integration tests
+      script:
+        - make test.unit
+        - make test.integration
+    - stage: build and push docker test image
+      before_script: echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+      script:
+        - make docker.build
+        - make docker.push
+    - stage: e2e tests (k8s)
+      install:
+        - curl -Lo $HOME/bin/kind https://github.com/kubernetes-sigs/kind/releases/download/$KIND_VER/kind-linux-amd64
+        - chmod +x $HOME/bin/kind
+        - kind version
+        - curl -Lo $HOME/bin/kubectl https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+        - chmod +x $HOME/bin/kubectl
+        - kubectl version --client --short
+      script: make test.e2e.k8s
+    - stage: e2e tests (AWS)
+      script:
+        - make build
+        - make terraform.chkfmt
+        - make terraform.init
+        - make terraform.keygen
+        - make terraform.validate
+        - make terraform.apply
+        - make test.e2e
+        - make terraform.destroy
