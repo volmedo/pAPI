@@ -369,7 +369,7 @@ func FeatureContext(s *godog.Suite) {
 
 	// Wait for the application to settle before running the test suite
 	s.BeforeSuite(func() {
-		max_retries := 10
+		max_retries := 20
 		err := client.ping()
 		for i := 0; i < max_retries && err != nil; i++ {
 			time.Sleep(1 * time.Second)
