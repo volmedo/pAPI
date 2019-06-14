@@ -36,7 +36,9 @@ TERRAFORM = docker run --rm -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -v "$(
 
 SRV_BIN_NAME ?= papisrv
 
+PAPI_IMG_REPO ?= papi
 PAPI_IMG_TAG ?= test
+BUILDER_IMG_TAG ?= builder
 
 KIND_CLUSTER = papi
 
@@ -109,10 +111,29 @@ test.e2e.local:
 	exit $$TEST_RESULT
 
 docker.build:
-	docker build -t volmedo/papi:$(PAPI_IMG_TAG) .
+	# Use a previous image as cache if running in CI. This is mostly to avoid
+	# rebuilding the 'go mod download' layer, which won't change that often
+	# and takes a while to generate. The extra image dance comes from the fact
+	# that the image is a multi-stage build, and the builder stage must be
+	# built and pushed independently to enable caching
+	if [ -z $$CI ]; then \
+		docker build -t volmedo/$(PAPI_IMG_REPO):$(PAPI_IMG_TAG) . ;\
+	else \
+		docker pull volmedo/$(PAPI_IMG_REPO):$(BUILDER_IMG_TAG) || true ;\
+		docker build \
+			--target $(BUILDER_IMG_TAG) \
+			--cache-from volmedo/$(PAPI_IMG_REPO):$(BUILDER_IMG_TAG) \
+			-t volmedo/$(PAPI_IMG_REPO):$(BUILDER_IMG_TAG) . ;\
+		docker pull volmedo/$(PAPI_IMG_REPO):$(PAPI_IMG_TAG) || true ;\
+		docker build \
+			--cache-from volmedo/$(PAPI_IMG_REPO):$(BUILDER_IMG_TAG) \
+			--cache-from volmedo/$(PAPI_IMG_REPO):$(PAPI_IMG_TAG) \
+			-t volmedo/$(PAPI_IMG_REPO):$(PAPI_IMG_TAG) . ;\
+		docker push volmedo/$(PAPI_IMG_REPO):$(BUILDER_IMG_TAG) ;\
+	fi
 
 docker.push:
-	docker push volmedo/papi:$(PAPI_IMG_TAG)
+	docker push volmedo/$(PAPI_IMG_REPO):$(PAPI_IMG_TAG)
 
 test.e2e.k8s:
 	kind create cluster --name $(KIND_CLUSTER) --wait 5m
