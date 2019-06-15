@@ -13,13 +13,10 @@ TARGET_ARCH ?= amd64
 SWAGGER_VER ?= v0.19.0
 SWAGGER = docker run --rm -e GOPATH=/go -v "$(PWD)":"$(PWD)" -w "$(PWD)" quay.io/goswagger/swagger:$(SWAGGER_VER)
 
-GOLANGCI_LINT_VER ?= v1.16.0
-GOLANGCI_LINT = docker run --rm -v "$(PWD)":"$(PWD)" -w "$(PWD)" golangci/golangci-lint:$(GOLANGCI_LINT_VER)
-
 POSTGRES_VER ?= 11.3-alpine
 CONTAINER_NAME = db
 DB_HOST ?= localhost
-DB_PORT ?= 54321
+DB_PORT ?= 5432
 DB_USER ?= papi_user
 DB_PASS ?= papi_test_pass
 DB_NAME ?= papi_db
@@ -39,7 +36,9 @@ TERRAFORM = docker run --rm -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -v "$(
 
 SRV_BIN_NAME ?= papisrv
 
+PAPI_IMG_REPO ?= papi
 PAPI_IMG_TAG ?= test
+BUILDER_IMG_TAG ?= builder
 
 KIND_CLUSTER = papi
 
@@ -57,7 +56,7 @@ swagger.generate.client:
 	$(SWAGGER) generate client --spec=$(SPEC) --template=stratoscale --target=$(PKG) --skip-models
 
 lint:
-	$(GOLANGCI_LINT) golangci-lint run --no-config --skip-dirs "$(PKG)/(client|models|restapi)" --deadline 2m
+	golangci-lint run --no-config --skip-dirs "$(PKG)/(client|models|restapi)" --deadline 2m
 
 test.unit:
 	$(GO) test -v -race ./$(PKG)/service
@@ -67,8 +66,10 @@ test.unit:
 # no matter if tests fails or not but make the final exit code of the command depend
 # on the result of tests, so that the step fails in CI if tests fail
 test.integration:
-	$(POSTGRES_START)
-	$(POSTGRES_WAIT)
+	if [ -z $$CI ]; then \
+		$(POSTGRES_START) ;\
+		$(POSTGRES_WAIT) ;\
+	fi ;\
 	$(GO) test -v -race -tags=integration ./$(PKG)/service \
 		-dbhost=$(DB_HOST) \
 		-dbport=$(DB_PORT) \
@@ -77,7 +78,9 @@ test.integration:
 		-dbname=$(DB_NAME) \
 		-migrations=./migrations ;\
 	TEST_RESULT=$$? ;\
-	$(POSTGRES_STOP) ;\
+	if [ -z $$CI ]; then \
+		$(POSTGRES_STOP) ;\
+	fi ;\
 	exit $$TEST_RESULT
 
 build:
@@ -85,8 +88,10 @@ build:
 
 test.e2e.local:
 	$(GO) build -o testsrv ./$(CMD)/server
-	$(POSTGRES_START)
-	$(POSTGRES_WAIT)
+	if [ -z $$CI ]; then \
+		$(POSTGRES_START) ;\
+		$(POSTGRES_WAIT) ;\
+	fi ;\
 	./testsrv \
 		-port=8080 \
 		-dbhost=$(DB_HOST) \
@@ -100,14 +105,35 @@ test.e2e.local:
 	TEST_RESULT=$$? ;\
 	kill $$SERVER_PID ;\
 	rm testsrv ;\
-	$(POSTGRES_STOP) ;\
+	if [ -z $$CI ]; then \
+		$(POSTGRES_STOP) ;\
+	fi ;\
 	exit $$TEST_RESULT
 
 docker.build:
-	docker build -t volmedo/papi:$(PAPI_IMG_TAG) .
+	# Use a previous image as cache if running in CI. This is mostly to avoid
+	# rebuilding the 'go mod download' layer, which won't change that often
+	# and takes a while to generate. The extra image dance comes from the fact
+	# that the image is a multi-stage build, and the builder stage must be
+	# built and pushed independently to enable caching
+	if [ -z $$CI ]; then \
+		docker build -t volmedo/$(PAPI_IMG_REPO):$(PAPI_IMG_TAG) . ;\
+	else \
+		docker pull volmedo/$(PAPI_IMG_REPO):$(BUILDER_IMG_TAG) || true ;\
+		docker build \
+			--target $(BUILDER_IMG_TAG) \
+			--cache-from volmedo/$(PAPI_IMG_REPO):$(BUILDER_IMG_TAG) \
+			-t volmedo/$(PAPI_IMG_REPO):$(BUILDER_IMG_TAG) . ;\
+		docker pull volmedo/$(PAPI_IMG_REPO):$(PAPI_IMG_TAG) || true ;\
+		docker build \
+			--cache-from volmedo/$(PAPI_IMG_REPO):$(BUILDER_IMG_TAG) \
+			--cache-from volmedo/$(PAPI_IMG_REPO):$(PAPI_IMG_TAG) \
+			-t volmedo/$(PAPI_IMG_REPO):$(PAPI_IMG_TAG) . ;\
+		docker push volmedo/$(PAPI_IMG_REPO):$(BUILDER_IMG_TAG) ;\
+	fi
 
 docker.push:
-	docker push volmedo/papi:$(PAPI_IMG_TAG)
+	docker push volmedo/$(PAPI_IMG_REPO):$(PAPI_IMG_TAG)
 
 test.e2e.k8s:
 	kind create cluster --name $(KIND_CLUSTER) --wait 5m
