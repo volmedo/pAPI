@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: database
+  labels:
+    app: papi
+    component: database
+spec:
+  selector:
+    matchLabels:
+      app: papi
+      component: database
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: papi
+        component: database
+    spec:
+      containers:
+        - name: database
+          image: postgres:11.3-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: db-config
+                  key: dbname
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: db-creds
+                  key: user
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-creds
+                  key: pass
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: database
+  labels:
+    app: papi
+    component: database
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    app: papi
+    component: database
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-config
+  labels:
+    app: papi
+    component: database
+data:
+  host: database
+  port: "5432"
+  dbname: papi_db

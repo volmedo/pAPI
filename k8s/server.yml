@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server
+  labels:
+    app: papi
+    component: server
+spec:
+  selector:
+    matchLabels:
+      app: papi
+      component: server
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: papi
+        component: server
+    spec:
+      containers:
+        - name: server
+          image: volmedo/papi:test
+          imagePullPolicy: Always
+          env:
+            - name: PAPI_PORT
+              value: "8080"
+            - name: PAPI_DBHOST
+              valueFrom:
+                configMapKeyRef:
+                  name: db-config
+                  key: host
+            - name: PAPI_DBPORT
+              valueFrom:
+                configMapKeyRef:
+                  name: db-config
+                  key: port
+            - name: PAPI_DBUSER
+              valueFrom:
+                secretKeyRef:
+                  name: db-creds
+                  key: user
+            - name: PAPI_DBPASS
+              valueFrom:
+                secretKeyRef:
+                  name: db-creds
+                  key: pass
+            - name: PAPI_DBNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: db-config
+                  key: dbname
+          ports:
+            - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: server
+  labels:
+    app: papi
+    component: server
+spec:
+  ports:
+    - port: 8080
+  selector:
+    app: papi
+    component: server
+  type: NodePort

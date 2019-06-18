@@ -139,15 +139,15 @@ test.e2e.k8s:
 	kind create cluster --name $(KIND_CLUSTER) --wait 5m
 	export KUBECONFIG="$$(kind get kubeconfig-path --name $(KIND_CLUSTER))" ;\
 	kubectl apply -f k8s/ ;\
-	kubectl wait --for condition=Ready pod -l tier=backend ;\
+	kubectl wait --for condition=Ready pod -l component=server ;\
 	PROXY_PORT=8000 ;\
 	kubectl proxy --port=$$PROXY_PORT & \
 	PROXY_PID=$$! ;\
 	$(GO) test -v -race ./$(E2E) \
 		-host=localhost \
 		-port=$$PROXY_PORT \
-		-api-path=/api/v1/namespaces/default/services/api/proxy/v1 \
-		-health-path=/api/v1/namespaces/default/services/api/proxy/health ;\
+		-api-path=/api/v1/namespaces/default/services/server/proxy/v1 \
+		-health-path=/api/v1/namespaces/default/services/server/proxy/health ;\
 	TEST_RESULT=$$? ;\
 	kill $$PROXY_PID ;\
 	kubectl delete -f k8s/ ;\
