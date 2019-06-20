@@ -364,11 +364,8 @@ func TestList(t *testing.T) {
 
 func TestListBadParams(t *testing.T) {
 	tests := map[string]struct {
-		offset      int64
-		limit       int64
-		shouldFail  bool
-		expectedLen int
-		expectedErr error
+		offset int64
+		limit  int64
 	}{
 		"offset negative": {
 			offset: -1,
