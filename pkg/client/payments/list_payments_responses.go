@@ -32,8 +32,8 @@ func (o *ListPaymentsReader) ReadResponse(response runtime.ClientResponse, consu
 		}
 		return result, nil
 
-	case 400:
-		result := NewListPaymentsBadRequest()
+	case 404:
+		result := NewListPaymentsNotFound()
 		if err := result.readResponse(response, consumer, o.formats); err != nil {
 			return nil, err
 		}
@@ -87,24 +87,24 @@ func (o *ListPaymentsOK) readResponse(response runtime.ClientResponse, consumer 
 	return nil
 }
 
-// NewListPaymentsBadRequest creates a ListPaymentsBadRequest with default headers values
-func NewListPaymentsBadRequest() *ListPaymentsBadRequest {
-	return &ListPaymentsBadRequest{}
+// NewListPaymentsNotFound creates a ListPaymentsNotFound with default headers values
+func NewListPaymentsNotFound() *ListPaymentsNotFound {
+	return &ListPaymentsNotFound{}
 }
 
-/*ListPaymentsBadRequest handles this case with default header values.
+/*ListPaymentsNotFound handles this case with default header values.
 
-Bad Request
+The query returned no payments
 */
-type ListPaymentsBadRequest struct {
+type ListPaymentsNotFound struct {
 	Payload *models.APIError
 }
 
-func (o *ListPaymentsBadRequest) Error() string {
-	return fmt.Sprintf("[GET /payments][%d] listPaymentsBadRequest  %+v", 400, o.Payload)
+func (o *ListPaymentsNotFound) Error() string {
+	return fmt.Sprintf("[GET /payments][%d] listPaymentsNotFound  %+v", 404, o.Payload)
 }
 
-func (o *ListPaymentsBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
+func (o *ListPaymentsNotFound) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	o.Payload = new(models.APIError)
 

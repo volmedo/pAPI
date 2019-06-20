@@ -329,8 +329,8 @@ paths:
           description: List of payment details
           schema:
             $ref: "#/definitions/PaymentDetailsListResponse"
-        400:
-          description: Bad Request
+        404:
+          description: The query returned no payments
           schema:
             $ref: "#/definitions/ApiError"
         429:

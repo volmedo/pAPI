@@ -163,7 +163,7 @@ func paymentsToRows(payments []*models.Payment) *sqlmock.Rows {
 func TestAdd(t *testing.T) {
 	testRepo, mock, err := setupRepo()
 	if err != nil {
-		t.Fatalf("Error setting up test repo")
+		t.Fatal("Error setting up test repo")
 	}
 	defer testRepo.Close()
 
@@ -189,7 +189,7 @@ func TestAdd(t *testing.T) {
 func TestAddConflict(t *testing.T) {
 	testRepo, mock, err := setupRepo()
 	if err != nil {
-		t.Fatalf("Error setting up test repo")
+		t.Fatal("Error setting up test repo")
 	}
 	defer testRepo.Close()
 
@@ -212,7 +212,7 @@ func TestAddConflict(t *testing.T) {
 func TestDelete(t *testing.T) {
 	testRepo, mock, err := setupRepo()
 	if err != nil {
-		t.Fatalf("Error setting up test repo")
+		t.Fatal("Error setting up test repo")
 	}
 	defer testRepo.Close()
 
@@ -233,7 +233,7 @@ func TestDelete(t *testing.T) {
 func TestDeleteNonExistent(t *testing.T) {
 	testRepo, mock, err := setupRepo()
 	if err != nil {
-		t.Fatalf("Error setting up test repo")
+		t.Fatal("Error setting up test repo")
 	}
 	defer testRepo.Close()
 
@@ -256,7 +256,7 @@ func TestDeleteNonExistent(t *testing.T) {
 func TestGet(t *testing.T) {
 	testRepo, mock, err := setupRepo()
 	if err != nil {
-		t.Fatalf("Error setting up test repo")
+		t.Fatal("Error setting up test repo")
 	}
 	defer testRepo.Close()
 
@@ -283,7 +283,7 @@ func TestGet(t *testing.T) {
 func TestGetNonExistent(t *testing.T) {
 	testRepo, mock, err := setupRepo()
 	if err != nil {
-		t.Fatalf("Error setting up test repo")
+		t.Fatal("Error setting up test repo")
 	}
 	defer testRepo.Close()
 
@@ -307,58 +307,24 @@ func TestList(t *testing.T) {
 	testPayments := generateDummyPayments(200)
 
 	tests := map[string]struct {
-		offset      int
-		limit       int
-		shouldFail  bool
+		offset      int64
+		limit       int64
 		expectedLen int
 	}{
 		"first 5": {
 			offset:      0,
 			limit:       5,
-			shouldFail:  false,
 			expectedLen: 5,
 		},
 		"from 25 to 32": {
 			offset:      25,
 			limit:       6,
-			shouldFail:  false,
 			expectedLen: 6,
 		},
 		"less than limit available": {
-			offset:      len(testPayments) - 10,
+			offset:      int64(len(testPayments) - 10),
 			limit:       20,
-			shouldFail:  false,
 			expectedLen: 10,
-		},
-		"offset negative": {
-			offset:      -1,
-			limit:       5,
-			shouldFail:  true,
-			expectedLen: 0,
-		},
-		"offset too high": {
-			offset:      len(testPayments),
-			limit:       5,
-			shouldFail:  true,
-			expectedLen: 0,
-		},
-		"limit 0": {
-			offset:      0,
-			limit:       0,
-			shouldFail:  true,
-			expectedLen: 0,
-		},
-		"limit negative": {
-			offset:      0,
-			limit:       -1,
-			shouldFail:  true,
-			expectedLen: 0,
-		},
-		"limit too high": {
-			offset:      0,
-			limit:       101,
-			shouldFail:  true,
-			expectedLen: 0,
 		},
 	}
 
@@ -366,34 +332,21 @@ func TestList(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			testRepo, mock, err := setupRepo()
 			if err != nil {
-				t.Fatalf("Error setting up test repo")
+				t.Fatal("Error setting up test repo")
 			}
 			defer testRepo.Close()
 
-			mock.ExpectQuery(`SELECT COUNT\(\*\) FROM payments`).
-				WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(len(testPayments)))
-
-			if tc.shouldFail {
-				_, err := testRepo.List(int64(tc.offset), int64(tc.limit))
-				if err == nil {
-					t.Errorf("Test should've failed but no error was produced")
-				} else if _, ok := err.(ErrBadOffsetLimit); !ok {
-					t.Errorf("Expected ErrBadOffsetLimit but got %#v", err)
-				}
-				return
-			}
-
 			from := tc.offset
 			to := tc.offset + tc.limit
-			if to > len(testPayments) {
-				to = len(testPayments)
+			if to > int64(len(testPayments)) {
+				to = int64(len(testPayments))
 			}
 			rows := paymentsToRows(testPayments[from:to])
 			mock.ExpectQuery(`^SELECT (.+) FROM payments ORDER BY id ASC LIMIT \$1 OFFSET \$2$`).
 				WithArgs(tc.limit, tc.offset).
 				WillReturnRows(rows)
 
-			payments, err := testRepo.List(int64(tc.offset), int64(tc.limit))
+			payments, err := testRepo.List(tc.offset, tc.limit)
 			if err != nil {
 				t.Fatalf("Unexpected error: %#v", err)
 			}
@@ -406,6 +359,77 @@ func TestList(t *testing.T) {
 				t.Errorf("Expectations were not met: %s", err)
 			}
 		})
+	}
+}
+
+func TestListBadParams(t *testing.T) {
+	tests := map[string]struct {
+		offset      int64
+		limit       int64
+		shouldFail  bool
+		expectedLen int
+		expectedErr error
+	}{
+		"offset negative": {
+			offset: -1,
+			limit:  5,
+		},
+		"limit 0": {
+			offset: 0,
+			limit:  0,
+		},
+		"limit negative": {
+			offset: 0,
+			limit:  -1,
+		},
+		"limit too high": {
+			offset: 0,
+			limit:  101,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			testRepo, _, err := setupRepo()
+			if err != nil {
+				t.Fatal("Error setting up test repo")
+			}
+			defer testRepo.Close()
+
+			_, err = testRepo.List(tc.offset, tc.limit)
+			if err == nil {
+				t.Fatal("Test should've failed but no error was produced")
+			}
+
+			if _, ok := err.(ErrBadOffsetLimit); !ok {
+				t.Fatalf("Expected ErrBadOffsetLimit but got %T (%v)", err, err)
+			}
+		})
+	}
+}
+
+func TestListNoResults(t *testing.T) {
+	testRepo, mock, err := setupRepo()
+	if err != nil {
+		t.Fatalf("Error setting up test repo")
+	}
+	defer testRepo.Close()
+
+	offset := int64(0)
+	limit := int64(10)
+	mock.ExpectQuery(`^SELECT (.+) FROM payments ORDER BY id ASC LIMIT \$1 OFFSET \$2$`).
+		WithArgs(limit, offset).
+		WillReturnRows(paymentsToRows([]*models.Payment{}))
+
+	_, err = testRepo.List(offset, limit)
+	if err == nil {
+		t.Error("Test should've failed but no error was produced")
+	} else if _, ok := err.(ErrNoResults); !ok {
+		t.Errorf("Expected ErrNoResults but got %T (%v)", err, err)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("Expectations were not met: %s", err)
 	}
 }
 

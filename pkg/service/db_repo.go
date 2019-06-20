@@ -491,16 +491,6 @@ func (dbpr *DBPaymentRepository) List(offset, limit int64) ([]*models.Payment, e
 		return nil, newErrBadOffsetLimit(fmt.Sprintf("db: list offset %d negative", offset))
 	}
 
-	numRecords := 0
-	row := dbpr.db.QueryRow(`SELECT COUNT(*) FROM payments`)
-	err := row.Scan(&numRecords)
-	if err != nil {
-		return nil, fmt.Errorf("db: error counting records: %v", err)
-	}
-	if offset >= int64(numRecords) {
-		return nil, newErrBadOffsetLimit(fmt.Sprintf("db: list offset is %d but only %d records exist", offset, numRecords))
-	}
-
 	listStmt := `
 	SELECT
 		id,
@@ -629,6 +619,10 @@ func (dbpr *DBPaymentRepository) List(offset, limit int64) ([]*models.Payment, e
 
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("db: error scanning rows: %v", err)
+	}
+
+	if len(payments) == 0 {
+		return nil, newErrNoResults(fmt.Sprintf("db: no results with offset %d and limit %d", offset, limit))
 	}
 
 	return payments, nil

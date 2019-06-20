@@ -520,8 +520,9 @@ func listTests() []TestCase {
 
 	pageSize := new(int64)
 	*pageSize = 5
+	// pageNumber defaults to 0 according to spec
 	params = newParams(nil, pageSize)
-	firstFive := TestCase{ // pageNumber defaults to 0 according to spec
+	firstFive := TestCase{
 		name:      "list first five results",
 		setupData: setupData,
 		params:    params,
@@ -566,8 +567,9 @@ func listTests() []TestCase {
 
 	pageNumber = new(int64)
 	*pageNumber = 1
+	// pageSize defaults to 10 according to spec
 	params = newParams(pageNumber, nil)
-	pageNumberButNoPageSize := TestCase{ // pageSize defaults to 10 according to spec
+	pageNumberButNoPageSize := TestCase{
 		name:      "list with page number 2 and no page size",
 		setupData: setupData,
 		params:    params,
@@ -587,7 +589,7 @@ func listTests() []TestCase {
 		name:      "list a resource beyond the limit",
 		setupData: setupData,
 		params:    params,
-		wantCode:  http.StatusBadRequest,
+		wantCode:  http.StatusNotFound,
 		wantResp:  nil,
 	}
 

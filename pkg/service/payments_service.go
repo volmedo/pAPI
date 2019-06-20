@@ -85,8 +85,8 @@ func (papi *PaymentsService) ListPayments(ctx context.Context, params payments.L
 	list, err := papi.Repo.List(offset, limit)
 	if err != nil {
 		apiError := newAPIError(err.Error())
-		if _, ok := err.(ErrBadOffsetLimit); ok {
-			return payments.NewListPaymentsBadRequest().WithPayload(apiError)
+		if _, ok := err.(ErrNoResults); ok {
+			return payments.NewListPaymentsNotFound().WithPayload(apiError)
 		}
 
 		return payments.NewListPaymentsInternalServerError().WithPayload(apiError)
