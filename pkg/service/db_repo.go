@@ -693,7 +693,7 @@ func (dbpr *DBPaymentRepository) Update(paymentID strfmt.UUID, payment *models.P
 	attrs := payment.Attributes
 	amounts := senderChargesToAmounts(attrs.ChargesInformation.SenderCharges)
 	_, err = dbpr.db.Exec(updateStmt,
-		payment.ID,                                       // id,
+		paymentID,                                        // id,
 		payment.OrganisationID,                           // organisation,
 		version,                                          // version,
 		attrs.Amount,                                     // amount,
