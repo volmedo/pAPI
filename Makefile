@@ -18,7 +18,7 @@ CONTAINER_NAME = db
 DB_HOST ?= localhost
 DB_PORT ?= 5432
 DB_USER ?= papi_user
-DB_PASS ?= papi_test_pass
+DB_PASS := $(shell head -c 12 /dev/urandom | shasum | cut -d ' ' -f1)
 DB_NAME ?= papi_db
 POSTGRES_START = docker run --name $(CONTAINER_NAME) \
 					-e POSTGRES_USER=$(DB_USER) \
@@ -138,19 +138,23 @@ docker.push:
 test.e2e.k8s:
 	kind create cluster --name $(KIND_CLUSTER) --wait 5m
 	export KUBECONFIG="$$(kind get kubeconfig-path --name $(KIND_CLUSTER))" ;\
+	kubectl create secret generic db-creds \
+		--from-literal=user="$(DB_USER)" \
+		--from-literal=pass="$(DB_PASS)" ;\
 	kubectl apply -f k8s/ ;\
-	kubectl wait --for condition=Ready pod -l tier=backend ;\
+	kubectl wait --for condition=Ready pod -l component=server ;\
 	PROXY_PORT=8000 ;\
 	kubectl proxy --port=$$PROXY_PORT & \
 	PROXY_PID=$$! ;\
 	$(GO) test -v -race ./$(E2E) \
 		-host=localhost \
 		-port=$$PROXY_PORT \
-		-api-path=/api/v1/namespaces/default/services/api/proxy/v1 \
-		-health-path=/api/v1/namespaces/default/services/api/proxy/health ;\
+		-api-path=/api/v1/namespaces/default/services/server/proxy/v1 \
+		-health-path=/api/v1/namespaces/default/services/server/proxy/health ;\
 	TEST_RESULT=$$? ;\
 	kill $$PROXY_PID ;\
 	kubectl delete -f k8s/ ;\
+	kubectl delete secret db-creds ;\
 	unset KUBECONFIG ;\
 	kind delete cluster --name $(KIND_CLUSTER) ;\
 	exit $$TEST_RESULT
