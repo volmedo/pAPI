@@ -255,12 +255,13 @@ func (dbpr *DBPaymentRepository) Add(payment *models.Payment) (*models.Payment, 
 		$41, $42
 	)`
 
+	version := int64(0)
 	attrs := payment.Attributes
 	amounts := senderChargesToAmounts(attrs.ChargesInformation.SenderCharges)
 	_, err := dbpr.db.Exec(insertStmt,
 		payment.ID,                                       // id,
 		payment.OrganisationID,                           // organisation,
-		*payment.Version,                                 // version,
+		version,                                          // version,
 		attrs.Amount,                                     // amount,
 		attrs.BeneficiaryParty.AccountName,               // beneficiary_party.name,
 		attrs.BeneficiaryParty.AccountNumber,             // beneficiary_party.number,
@@ -310,9 +311,10 @@ func (dbpr *DBPaymentRepository) Add(payment *models.Payment) (*models.Payment, 
 		return nil, fmt.Errorf("db: error executing insert: %v", err)
 	}
 
-	// Ignore the original type attribute and fix it to TYPE_PAYMENT
 	added := copyPayment(payment)
+	// Add type and version attributes
 	added.Type = TYPE_PAYMENT
+	added.Version = &version
 	return added, nil
 }
 
@@ -740,8 +742,8 @@ func (dbpr *DBPaymentRepository) Update(paymentID strfmt.UUID, payment *models.P
 		return nil, fmt.Errorf("db: error executing update: %v", err)
 	}
 
-	// Ignore the original type attribute and fix it to TYPE_PAYMENT
 	updated := copyPayment(payment)
+	// Add type and version attributes
 	updated.Type = TYPE_PAYMENT
 	updated.Version = &version
 	return updated, nil
