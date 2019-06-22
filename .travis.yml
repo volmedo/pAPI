@@ -52,3 +52,9 @@ jobs:
         - make terraform.apply
         - make test.e2e
         - make terraform.destroy
+    - stage: push to Docker Hub
+      if: branch = master AND tag IS present
+      before_script: echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+      script:
+        - docker build -t $DOCKER_REPO:$TRAVIS_TAG .
+        - docker push $DOCKER_REPO
