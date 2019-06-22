@@ -255,12 +255,13 @@ func (dbpr *DBPaymentRepository) Add(payment *models.Payment) (*models.Payment, 
 		$41, $42
 	)`
 
+	version := int64(0)
 	attrs := payment.Attributes
 	amounts := senderChargesToAmounts(attrs.ChargesInformation.SenderCharges)
 	_, err := dbpr.db.Exec(insertStmt,
 		payment.ID,                                       // id,
 		payment.OrganisationID,                           // organisation,
-		*payment.Version,                                 // version,
+		version,                                          // version,
 		attrs.Amount,                                     // amount,
 		attrs.BeneficiaryParty.AccountName,               // beneficiary_party.name,
 		attrs.BeneficiaryParty.AccountNumber,             // beneficiary_party.number,
@@ -310,9 +311,10 @@ func (dbpr *DBPaymentRepository) Add(payment *models.Payment) (*models.Payment, 
 		return nil, fmt.Errorf("db: error executing insert: %v", err)
 	}
 
-	// Ignore the original type attribute and fix it to TYPE_PAYMENT
 	added := copyPayment(payment)
+	// Add type and version attributes
 	added.Type = TYPE_PAYMENT
+	added.Version = &version
 	return added, nil
 }
 
@@ -489,16 +491,6 @@ func (dbpr *DBPaymentRepository) List(offset, limit int64) ([]*models.Payment, e
 		return nil, newErrBadOffsetLimit(fmt.Sprintf("db: list offset %d negative", offset))
 	}
 
-	numRecords := 0
-	row := dbpr.db.QueryRow(`SELECT COUNT(*) FROM payments`)
-	err := row.Scan(&numRecords)
-	if err != nil {
-		return nil, fmt.Errorf("db: error counting records: %v", err)
-	}
-	if offset >= int64(numRecords) {
-		return nil, newErrBadOffsetLimit(fmt.Sprintf("db: list offset is %d but only %d records exist", offset, numRecords))
-	}
-
 	listStmt := `
 	SELECT
 		id,
@@ -629,6 +621,10 @@ func (dbpr *DBPaymentRepository) List(offset, limit int64) ([]*models.Payment, e
 		return nil, fmt.Errorf("db: error scanning rows: %v", err)
 	}
 
+	if len(payments) == 0 {
+		return nil, newErrNoResults(fmt.Sprintf("db: no results with offset %d and limit %d", offset, limit))
+	}
+
 	return payments, nil
 }
 
@@ -693,7 +689,7 @@ func (dbpr *DBPaymentRepository) Update(paymentID strfmt.UUID, payment *models.P
 	attrs := payment.Attributes
 	amounts := senderChargesToAmounts(attrs.ChargesInformation.SenderCharges)
 	_, err = dbpr.db.Exec(updateStmt,
-		payment.ID,                                       // id,
+		paymentID,                                        // id,
 		payment.OrganisationID,                           // organisation,
 		version,                                          // version,
 		attrs.Amount,                                     // amount,
@@ -740,8 +736,8 @@ func (dbpr *DBPaymentRepository) Update(paymentID strfmt.UUID, payment *models.P
 		return nil, fmt.Errorf("db: error executing update: %v", err)
 	}
 
-	// Ignore the original type attribute and fix it to TYPE_PAYMENT
 	updated := copyPayment(payment)
+	// Add type and version attributes
 	updated.Type = TYPE_PAYMENT
 	updated.Version = &version
 	return updated, nil

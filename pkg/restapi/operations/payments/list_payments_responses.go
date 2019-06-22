@@ -57,14 +57,14 @@ func (o *ListPaymentsOK) WriteResponse(rw http.ResponseWriter, producer runtime.
 	}
 }
 
-// ListPaymentsBadRequestCode is the HTTP code returned for type ListPaymentsBadRequest
-const ListPaymentsBadRequestCode int = 400
+// ListPaymentsNotFoundCode is the HTTP code returned for type ListPaymentsNotFound
+const ListPaymentsNotFoundCode int = 404
 
-/*ListPaymentsBadRequest Bad Request
+/*ListPaymentsNotFound The query returned no payments
 
-swagger:response listPaymentsBadRequest
+swagger:response listPaymentsNotFound
 */
-type ListPaymentsBadRequest struct {
+type ListPaymentsNotFound struct {
 
 	/*
 	  In: Body
@@ -72,27 +72,27 @@ type ListPaymentsBadRequest struct {
 	Payload *models.APIError `json:"body,omitempty"`
 }
 
-// NewListPaymentsBadRequest creates ListPaymentsBadRequest with default headers values
-func NewListPaymentsBadRequest() *ListPaymentsBadRequest {
+// NewListPaymentsNotFound creates ListPaymentsNotFound with default headers values
+func NewListPaymentsNotFound() *ListPaymentsNotFound {
 
-	return &ListPaymentsBadRequest{}
+	return &ListPaymentsNotFound{}
 }
 
-// WithPayload adds the payload to the list payments bad request response
-func (o *ListPaymentsBadRequest) WithPayload(payload *models.APIError) *ListPaymentsBadRequest {
+// WithPayload adds the payload to the list payments not found response
+func (o *ListPaymentsNotFound) WithPayload(payload *models.APIError) *ListPaymentsNotFound {
 	o.Payload = payload
 	return o
 }
 
-// SetPayload sets the payload to the list payments bad request response
-func (o *ListPaymentsBadRequest) SetPayload(payload *models.APIError) {
+// SetPayload sets the payload to the list payments not found response
+func (o *ListPaymentsNotFound) SetPayload(payload *models.APIError) {
 	o.Payload = payload
 }
 
 // WriteResponse to the client
-func (o *ListPaymentsBadRequest) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
+func (o *ListPaymentsNotFound) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
 
-	rw.WriteHeader(400)
+	rw.WriteHeader(404)
 	if o.Payload != nil {
 		payload := o.Payload
 		if err := producer.Produce(rw, payload); err != nil {

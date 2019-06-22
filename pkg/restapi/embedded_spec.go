@@ -68,8 +68,8 @@ func init() {
               "$ref": "#/definitions/PaymentDetailsListResponse"
             }
           },
-          "400": {
-            "description": "Bad Request",
+          "404": {
+            "description": "The query returned no payments",
             "schema": {
               "$ref": "#/definitions/ApiError"
             }
@@ -707,8 +707,8 @@ func init() {
               "$ref": "#/definitions/PaymentDetailsListResponse"
             }
           },
-          "400": {
-            "description": "Bad Request",
+          "404": {
+            "description": "The query returned no payments",
             "schema": {
               "$ref": "#/definitions/ApiError"
             }

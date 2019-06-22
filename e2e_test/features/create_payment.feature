@@ -5,9 +5,7 @@ Feature: Create payment
         When I create a new payment described in JSON as:
             """
             {
-                "type": "Payment",
                 "id": "4ee3a8d8-ca7b-4290-a52c-dd5b6165ec43",
-                "version": 0,
                 "organisation_id": "743d5b63-8e6f-432e-a8fa-c5d8d2ee5fcb",
                 "attributes": {
                     "amount": "100.21",
