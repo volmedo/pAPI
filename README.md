@@ -10,6 +10,32 @@
 
 pAPI is a payments API written in Go, a fictional cloud service that offers standard CRUD functionality on `payment` resources.
 
+## Table of Contents
+
+- [API design](#api-design)
+  - [Operations](#operations)
+    - [Common status codes](#common-status-codes)
+    - [Create payment](#create-payment)
+    - [Fetch payment](#fetch-payment)
+    - [Update payment](#update-payment)
+    - [Delete payment](#delete-payment)
+    - [List payments](#list-payments)
+  - [Rate limits](#rate-limits)
+  - [Additional endpoints](#additional-endpoints)
+- [Implementation details](#implementation-details)
+  - [Automatic code generation](#automatic-code-generation)
+  - [Test-Driven Development / Behaviour-Driven Development](#test-driven-development--behaviour-driven-development)
+  - [Resource state persistence](#resource-state-persistence)
+  - [Continuous Integration](#continuous-integration)
+  - [Infrastructure as Code
+    ](#infrastructure-as-code)
+  - [Instrumentation and logging](#instrumentation-and-logging)
+  - [Rate limiting](#rate-limiting)
+  - [Configuration from the environment](#configuration-from-the-environment)
+  - [Containerization](#containerization)
+  - [Cluster deployment](#cluster-deployment)
+- [Further work](#further-work)
+
 ## API design
 
 Payments API handles `payment` resources. A payment represents a money transaction between a beneficiary party and a debtor party and contains all information needed to correctly process the transaction as well as maintaining adequate book-keeping. Payment objects are written using JSON and are conformant with the [json:api specification](https://jsonapi.org/).
