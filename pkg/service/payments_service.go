@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/strfmt"
@@ -16,6 +17,9 @@ import (
 type PaymentsService struct {
 	// Repo is a repository for payments
 	Repo PaymentRepository
+
+	// Logger will be use to write logs. Only unexpected errors will be logged
+	Logger *log.Logger
 }
 
 // CreatePayment Adds a new payment with the data included in params
@@ -28,6 +32,7 @@ func (papi *PaymentsService) CreatePayment(ctx context.Context, params payments.
 			return payments.NewCreatePaymentConflict().WithPayload(apiError)
 		}
 
+		papi.Logger.Printf("Error on CreatePayment: %v", err)
 		return payments.NewCreatePaymentInternalServerError().WithPayload(apiError)
 	}
 
@@ -48,6 +53,7 @@ func (papi *PaymentsService) DeletePayment(ctx context.Context, params payments.
 			return payments.NewDeletePaymentNotFound().WithPayload(apiError)
 		}
 
+		papi.Logger.Printf("Error on DeletePayment: %v", err)
 		return payments.NewDeletePaymentInternalServerError().WithPayload(apiError)
 	}
 
@@ -64,6 +70,7 @@ func (papi *PaymentsService) GetPayment(ctx context.Context, params payments.Get
 			return payments.NewGetPaymentNotFound().WithPayload(apiError)
 		}
 
+		papi.Logger.Printf("Error on GetPayment: %v", err)
 		return payments.NewGetPaymentInternalServerError().WithPayload(apiError)
 	}
 
@@ -89,6 +96,7 @@ func (papi *PaymentsService) ListPayments(ctx context.Context, params payments.L
 			return payments.NewListPaymentsNotFound().WithPayload(apiError)
 		}
 
+		papi.Logger.Printf("Error on ListPayments: %v", err)
 		return payments.NewListPaymentsInternalServerError().WithPayload(apiError)
 	}
 
@@ -113,6 +121,7 @@ func (papi *PaymentsService) UpdatePayment(ctx context.Context, params payments.
 			return payments.NewUpdatePaymentNotFound().WithPayload(apiError)
 		}
 
+		papi.Logger.Printf("Error on UpdatePayment: %v", err)
 		return payments.NewUpdatePaymentInternalServerError().WithPayload(apiError)
 	}
 
