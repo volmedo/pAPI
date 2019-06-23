@@ -1,10 +1,12 @@
-# pAPI (= payments API)
+# pAPI (payments API)
 
 [![Build Status](https://travis-ci.org/volmedo/pAPI.svg?branch=master)][travis]
 [![Go Report Card](https://goreportcard.com/badge/github.com/volmedo/pAPI)][go_report]
 
 [travis]: https://travis-ci.org/volmedo/pAPI/
 [go_report]: https://goreportcard.com/report/github.com/volmedo/pAPI/
+
+<p align="center"><img src="logo.png" alt="pAPI logo" width="250"/></p>
 
 pAPI is a payments API written in Go, a fictional cloud service that offers standard CRUD functionality on `payment` resources.
 
@@ -266,3 +268,5 @@ Some features have been left out for simplicity, but would be mandatory in a rea
 - **Authorization:** A library such as [go-oauth2/oauth2](https://github.com/go-oauth2/oauth2/) could be used to implement server-side OAuth2 to handle client authorization to use of API resources. As was the case with SSL termination, authorization is likely to be handled centrally in most microservices architectures.
 - **Continuous Deployment:** Currently, Travis is only used for CI, but build artifacts are not deployed automatically on success. Terraform configurations could be rewritten into modules that could then be parametrized to allow for different deployments depending on the environment (staging, production, etc.)
 - **A lot of other things that doesn't make sense in a restricted-scope scenario like this project's one:** Advanced tools and services useful in complex architectures, such as service meshes, API gateways, log ingestion platforms, credential managers...
+
+<sub>\*(Logo font: Aristotelica Family by Zetafonts - http://www.zetafonts.com/collection/1077)</sub>
