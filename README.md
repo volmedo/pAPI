@@ -83,13 +83,13 @@ For simplicity, it is assumed that full representations of `payment` resources w
 
 The API offers basic CRUD operations on a collection of `payment` resources. The API is designed following RESTful conventions around endpoint names and HTTP methods. The following table summarizes available actions:
 
-| Action         | Method   | Endpoint       | Description                                                    | Status codes            |
-| -------------- | -------- | -------------- | -------------------------------------------------------------- | ----------------------- |
-| Create payment | `POST`   | /payments      | Creates a new payment resource with the given details          | 201, 409, 422, 429, 500 |
-| Fetch payment  | `GET`    | /payments/{id} | Requests details about the payment resource identified by `id` | 200, 404, 422, 429, 500 |
-| Update payment | `PUT`    | /payments/{id} | Uses the provided data to update the payment with `id`         | 200, 404, 422, 429, 500 |
-| Delete payment | `DELETE` | /payments/{id} | Deletes the payment resource identified by `id`                | 204, 404, 422, 429, 500 |
-| List payments  | `GET`    | /payments      | Fetches details about more than one payment as a collection    | 200, 400, 422, 429, 500 |
+| Action         |  Method  | Endpoint         | Description                                                    | Status codes            |
+| -------------- | :------: | ---------------- | -------------------------------------------------------------- | ----------------------- |
+| Create payment |  `POST`  | `/payments`      | Creates a new payment resource with the given details          | 201, 409, 422, 429, 500 |
+| Fetch payment  |  `GET`   | `/payments/{id}` | Requests details about the payment resource identified by `id` | 200, 404, 422, 429, 500 |
+| Update payment |  `PUT`   | `/payments/{id}` | Uses the provided data to update the payment with `id`         | 200, 404, 422, 429, 500 |
+| Delete payment | `DELETE` | `/payments/{id}` | Deletes the payment resource identified by `id`                | 204, 404, 422, 429, 500 |
+| List payments  |  `GET`   | `/payments`      | Fetches details about more than one payment as a collection    | 200, 400, 422, 429, 500 |
 
 #### Common status codes
 
@@ -105,16 +105,16 @@ Creates a new payment with the information given by the client in the request bo
 
 ##### Request
 
-| Request          | Params | Body      |
-| ---------------- | ------ | --------- |
-| `POST /payments` | -      | `payment` |
+|     Request      | Params |   Body    |
+| :--------------: | :----: | :-------: |
+| `POST /payments` |   -    | `payment` |
 
 ##### Response
 
-| Status code    | Body      | Description                                    |
-| -------------- | --------- | ---------------------------------------------- |
+| Status code    |   Body    | Description                                    |
+| -------------- | :-------: | ---------------------------------------------- |
 | `201 Created`  | `payment` | Resource created successfully                  |
-| `409 Conflict` | -         | There is already a payment with the given `id` |
+| `409 Conflict` |     -     | There is already a payment with the given `id` |
 
 #### Fetch payment
 
@@ -122,35 +122,35 @@ Asks the server for details about the payment with `id`.
 
 ##### Request
 
-| Request              | Params | Body |
-| -------------------- | ------ | ---- |
-| `GET /payments/{id}` | `id`   | -    |
+|       Request        | Params | Body |
+| :------------------: | :----: | :--: |
+| `GET /payments/{id}` |  `id`  |  -   |
 
 ##### Response
 
-| Status code     | Body      | Description                              |
-| --------------- | --------- | ---------------------------------------- |
+| Status code     |   Body    | Description                              |
+| --------------- | :-------: | ---------------------------------------- |
 | `200 OK`        | `payment` | Requested details retrieved successfully |
-| `404 Not Found` | -         | A payment with `id` could not be found   |
+| `404 Not Found` |     -     | A payment with `id` could not be found   |
 
 #### Update payment
 
 Updates the information about the payment identified by `id` with the data contained in the request body. The `id` in the URI will be used to identify the payment. If the payment object sent in the request body contains an `id` field, it will be ignored.
 
-`PUT` is used instead of `PATCH` because partial updates (i.e. updating only some attributes) are not allowed. Payment details will be updated by replacing payment representations as a whole.
+`PUT` is used instead of `PATCH` to indicate that partial updates (i.e. updating only some attributes) are not allowed. Payment details will be updated by replacing payment representations as a whole.
 
 ##### Request
 
-| Request              | Params | Body      |
-| -------------------- | ------ | --------- |
-| `PUT /payments/{id}` | `id`   | `payment` |
+|       Request        | Params |   Body    |
+| :------------------: | :----: | :-------: |
+| `PUT /payments/{id}` |  `id`  | `payment` |
 
 ##### Response
 
-| Status code     | Body      | Description                            |
-| --------------- | --------- | -------------------------------------- |
+| Status code     |   Body    | Description                            |
+| --------------- | :-------: | -------------------------------------- |
 | `200 OK`        | `payment` | Payment resource updated successfully  |
-| `404 Not Found` | -         | A payment with `id` could not be found |
+| `404 Not Found` |     -     | A payment with `id` could not be found |
 
 #### Delete payment
 
@@ -158,16 +158,16 @@ Deletes the payment with the given `id`.
 
 ##### Request
 
-| Request                 | Params | Body      |
-| ----------------------- | ------ | --------- |
-| `DELETE /payments/{id}` | `id`   | `payment` |
+|         Request         | Params | Body |
+| :---------------------: | :----: | :--: |
+| `DELETE /payments/{id}` |  `id`  |  -   |
 
 ##### Response
 
 | Status code      | Body | Description                            |
-| ---------------- | ---- | -------------------------------------- |
-| `204 No Content` | -    | Payment resource deleted successfully  |
-| `404 Not Found`  | -    | A payment with `id` could not be found |
+| ---------------- | :--: | -------------------------------------- |
+| `204 No Content` |  -   | Payment resource deleted successfully  |
+| `404 Not Found`  |  -   | A payment with `id` could not be found |
 
 #### List payments
 
@@ -175,9 +175,9 @@ Gets a view of payment resources as a collection.
 
 ##### Request
 
-| Request         | Params                       | Body |
-| --------------- | ---------------------------- | ---- |
-| `GET /payments` | `page[number]`, `page[size]` | -    |
+|     Request     |            Params            | Body |
+| :-------------: | :--------------------------: | :--: |
+| `GET /payments` | `page[number]`, `page[size]` |  -   |
 
 This action supports pagination parameters:
 
@@ -186,10 +186,10 @@ This action supports pagination parameters:
 
 ##### Response
 
-| Status code     | Body               | Description                                                                                                          |
-| --------------- | ------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| Status code     |        Body        | Description                                                                                                          |
+| --------------- | :----------------: | -------------------------------------------------------------------------------------------------------------------- |
 | `200 OK`        | Array of `payment` | Requested details retrieved successfully                                                                             |
-| `404 Not Found` | -                  | No payment matches the query. Either there are no payments or pagination parameters make the query return no results |
+| `404 Not Found` |         -          | No payment matches the query. Either there are no payments or pagination parameters make the query return no results |
 
 ### Rate limits
 
@@ -220,7 +220,7 @@ The rest of the section highlights the key features implemented in the project. 
 
 Tests are used to describe desired behaviour and to drive design decisions. Required functionality is captured in [Cucumber](https://cucumber.io/) features, written using [Gherkin](https://cucumber.io/docs/gherkin/) syntax. Acceptance end to end tests are based on [DATA-DOG/godog](https://github.com/DATA-DOG/godog/), the semi-official implementation of Cucumber for Go.
 
-End to end tests are then followed by integration and unit tests. Standard Go testing facilities are used for these tests, since they are developer tests, with the help of auxiliary libraries such as [mitchellh/copystructure](github.com/mitchellh/copystructure/) or [google/go-cmp](https://github.com/google/go-cmp/). [DATA-DOG/go-sqlmock](https://github.com/DATA-DOG/go-sqlmock/) serves as a database test double when unit testing the code that interfaces with the data backend.
+End to end tests are then followed by integration and unit tests. Standard Go testing facilities are used for these tests, since they are developer tests, with the help of auxiliary libraries such as [mitchellh/copystructure](https://github.com/mitchellh/copystructure/) or [google/go-cmp](https://github.com/google/go-cmp/). [DATA-DOG/go-sqlmock](https://github.com/DATA-DOG/go-sqlmock/) serves as a database test double when unit testing the code that interfaces with the data backend.
 
 ### Resource state persistence
 
@@ -242,7 +242,7 @@ End to end tests are run by deploying the service on real infrastructure in [Ama
 
 Service metrics are exposed in [Prometheus](https://prometheus.io/) format thanks to an additional endpoint implemented using [slok/go-http-metrics](https://github.com/slok/go-http-metrics/). Collected metrics follow [the RED method](https://www.weave.works/blog/the-red-method-key-metrics-for-microservices-architecture/).
 
-Logging in the application is done in a lightweight manner, avoiding huge amounts of logs that make finding the information needed to solve an issue quite hard. Instead, metrics are the main source of information about the service status. Request logging is avoided, only errors are logged. Go's standard log package is enough for this use.
+Logging in the application is done in a lightweight manner, avoiding huge amounts of logs that make finding the information needed to solve an issue quite hard. Instead, metrics are favoured as the main source of information about the service's status. Request logging is avoided, and only server errors are logged. Go's standard log package is enough for this use.
 
 ### Rate limiting
 
@@ -250,7 +250,7 @@ Imposing rate limits is essential to avoid server resource misuse. Rate limiting
 
 ### Configuration from the environment
 
-Service configuration can be stored in the environment, following guidelines and conventions such as those proposed by [The Twelve-Factor App](https://12factor.net/). [namsral/flag](github.com/namsral/flag/) is a drop-in replacement for Go stdlib's `flag` package that is able to read configuration parameters from environment variables as well as regular command-line arguments.
+Service configuration can be stored in the environment, following guidelines and conventions such as those proposed by [The Twelve-Factor App](https://12factor.net/). [namsral/flag](https://github.com/namsral/flag/) is a drop-in replacement for Go stdlib's `flag` package that is able to read configuration parameters from environment variables as well as regular command-line arguments.
 
 ### Containerization
 
@@ -260,7 +260,7 @@ To ease deployment, [Docker](https://www.docker.com/) container images are gener
 
 Once the service is containerized, it can be easily deployed in a cluster using [Kubernetes](https://kubernetes.io/). To check K8s configuration, the service is deployed in a local cluster created with [kind](https://kind.sigs.k8s.io/) and the end to end tests are run against this local deployment.
 
-## Further work, missing things
+## Further work
 
 Some features have been left out for simplicity, but would be mandatory in a real-world scenario.
 
@@ -269,4 +269,4 @@ Some features have been left out for simplicity, but would be mandatory in a rea
 - **Continuous Deployment:** Currently, Travis is only used for CI, but build artifacts are not deployed automatically on success. Terraform configurations could be rewritten into modules that could then be parametrized to allow for different deployments depending on the environment (staging, production, etc.)
 - **A lot of other things that doesn't make sense in a restricted-scope scenario like this project's one:** Advanced tools and services useful in complex architectures, such as service meshes, API gateways, log ingestion platforms, credential managers...
 
-<sub>\*(Logo font: Aristotelica Family by Zetafonts - http://www.zetafonts.com/collection/1077)</sub>
+<sub>\*Logo font: Aristotelica Family by Zetafonts - http://www.zetafonts.com/collection/1077</sub>
